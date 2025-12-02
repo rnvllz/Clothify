@@ -27,6 +27,18 @@ export const productService = {
     return data || [];
   },
 
+  // Get products by category
+  async getByCategory(category: string): Promise<Product[]> {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('category', category)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
   // Create product
   async create(productData: ProductInsert): Promise<Product> {
     const { data, error } = await supabase

@@ -3,6 +3,7 @@ import { productService, storageService } from "../api/api";
 import { nanoid } from "nanoid";
 import type { Product } from "../types/database";
 import toast from "react-hot-toast";
+import { CATEGORIES } from "../constants/categories";
 
 
 
@@ -120,6 +121,7 @@ const Admin: React.FC = () => {
                   <div className="flex-1">
                     <h3 className="text-black text-sm">{p.title}</h3>
                     <p className="text-gray-600 text-xs mt-1">${p.price}</p>
+                    <p className="text-gray-500 text-xs mt-1">{p.category}</p>
                     <p className="text-gray-500 text-xs mt-1">{p.description}</p>
                   </div>
                   <div className="flex gap-4 items-start">
@@ -152,6 +154,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ refreshProducts }) => {
   const [title, setTitle] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [price, setPrice] = useState<string>("");
+  const [category, setCategory] = useState<string>(CATEGORIES[0]);
   const [image, setImage] = useState<File | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
 
@@ -171,6 +174,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ refreshProducts }) => {
         title,
         description,
         price: parseFloat(price),
+        category,
         image: imageUrl,
       });
 
@@ -179,6 +183,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ refreshProducts }) => {
       setTitle("");
       setDescription("");
       setPrice("");
+      setCategory(CATEGORIES[0]);
       setImage(null);
       refreshProducts();
     } catch (error) {
@@ -228,6 +233,22 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ refreshProducts }) => {
       </div>
 
       <div>
+        <label className="block text-xs text-gray-600 mb-2 uppercase tracking-wide">Category</label>
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          required
+          className="w-full border border-gray-300 px-4 py-3 text-black focus:outline-none focus:border-black text-sm"
+        >
+          {CATEGORIES.map((cat) => (
+            <option key={cat} value={cat}>
+              {cat}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
         <label className="block text-xs text-gray-600 mb-2 uppercase tracking-wide">Product Image</label>
         <input
           type="file"
@@ -266,6 +287,7 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, refreshProdu
   const [title, setTitle] = useState<string>(product.title);
   const [description, setDescription] = useState<string>(product.description || "");
   const [price, setPrice] = useState<string>(product.price.toString());
+  const [category, setCategory] = useState<string>(product.category);
   const [image, setImage] = useState<File | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
 
@@ -274,10 +296,11 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, refreshProdu
     setUploading(true);
 
     try {
-      const updates: { title: string; description: string; price: number; image?: string } = {
+      const updates: { title: string; description: string; price: number; category: string; image?: string } = {
         title,
         description,
         price: parseFloat(price),
+        category,
       };
 
       if (image) {
@@ -338,6 +361,21 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, refreshProdu
             onChange={e => setPrice(e.target.value)} 
             className="w-full border border-gray-300 px-4 py-3 text-black placeholder:text-gray-400 focus:outline-none focus:border-black text-sm"
           />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-600 mb-2 uppercase tracking-wide">Category</label>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            required
+            className="w-full border border-gray-300 px-4 py-3 text-black focus:outline-none focus:border-black text-sm"
+          >
+            {CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="block text-xs text-gray-600 mb-2 uppercase tracking-wide">New Image (optional)</label>

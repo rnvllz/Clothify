@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 
 const Cart: React.FC = () => {
-  const { cartItems, removeFromCart, clearCart } = useContext(CartContext);
+  const { cartItems, removeFromCart, clearCart, incrementQty, decrementQty } = useContext(CartContext);
 
   const total = cartItems.reduce((acc, item) => acc + item.price * item.qty, 0);
 
@@ -42,9 +42,23 @@ const handleClear = () => {
                         <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
                       </div>
                     )}
-                    <div>
+                    <div className="flex-1">
                       <h3 className="text-black font-light text-sm">{item.title}</h3>
-                      <p className="text-gray-500 text-xs font-light mt-1">Quantity: {item.qty}</p>
+                      <div className="flex items-center space-x-3 mt-3">
+                        <button
+                          onClick={() => decrementQty(item.id)}
+                          className="w-7 h-7 flex items-center justify-center border border-gray-300 hover:bg-gray-100 text-black transition-colors"
+                        >
+                          −
+                        </button>
+                        <span className="text-black font-light text-sm min-w-[2rem] text-center">{item.qty}</span>
+                        <button
+                          onClick={() => incrementQty(item.id)}
+                          className="w-7 h-7 flex items-center justify-center border border-gray-300 hover:bg-gray-100 text-black transition-colors"
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center space-x-8">

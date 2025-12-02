@@ -23,6 +23,7 @@ export interface Product {
   description: string | null;
   price: number;
   image: string | null;
+  category: string;
   created_at: string;
 }
 
@@ -32,6 +33,7 @@ export interface ProductInsert {
   description?: string | null;
   price: number;
   image?: string | null;
+  category: string;
   created_at?: string;
 }
 
@@ -40,6 +42,7 @@ export interface ProductUpdate {
   description?: string | null;
   price?: number;
   image?: string | null;
+  category?: string;
 }
 
 export interface Order {

@@ -9,6 +9,8 @@ interface CartContextType {
   addToCart: (product: Product) => void;
   removeFromCart: (id: string) => void;
   clearCart: () => void;
+  incrementQty: (id: string) => void;
+  decrementQty: (id: string) => void;
   submitOrder: (customer_name: string, customer_email: string) => Promise<Order>;
 }
 
@@ -17,6 +19,8 @@ export const CartContext = createContext<CartContextType>({
   addToCart: () => {},
   removeFromCart: () => {},
   clearCart: () => {},
+  incrementQty: () => {},
+  decrementQty: () => {},
   submitOrder: async () => ({} as Order),
 });
 
@@ -63,6 +67,22 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
   const clearCart = () => setCartItems([]);
 
+  const incrementQty = (id: string) => {
+    setCartItems((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, qty: item.qty + 1 } : item
+      )
+    );
+  };
+
+  const decrementQty = (id: string) => {
+    setCartItems((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, qty: Math.max(1, item.qty - 1) } : item
+      )
+    );
+  };
+
   // submit order to Supabase
   const submitOrder = async (customer_name: string, customer_email: string): Promise<Order> => {
     const total = cartItems.reduce((acc, item) => acc + item.price * item.qty, 0);
@@ -86,7 +106,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   };
 
   return (
-    <CartContext.Provider value={{ cartItems, addToCart, removeFromCart, clearCart, submitOrder }}>
+    <CartContext.Provider value={{ cartItems, addToCart, removeFromCart, clearCart, incrementQty, decrementQty, submitOrder }}>
       {children}
     </CartContext.Provider>
   );
