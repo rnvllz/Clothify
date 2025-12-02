@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, ReactNode } from "react";
 import { orderService } from "../api/api";
 import { nanoid } from "nanoid";
 import type { Product, Order, CartItem } from "../types/database";
+import Toast from "../components/Toast";
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -29,6 +30,8 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     const saved = localStorage.getItem("cart");
     return saved ? JSON.parse(saved) : [];
   });
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastKey, setToastKey] = useState<number>(0);
 
   useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(cartItems));
@@ -44,6 +47,9 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       }
       return [...prev, { ...product, qty: 1 }];
     });
+    // Update toast with a unique key to force re-render
+    setToastMessage(`${product.title} added to cart`);
+    setToastKey(prev => prev + 1);
   };
 
   const removeFromCart = (id: string) => {
@@ -77,6 +83,13 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   return (
     <CartContext.Provider value={{ cartItems, addToCart, removeFromCart, clearCart, submitOrder }}>
       {children}
+      {toastMessage && (
+        <Toast 
+          key={toastKey}
+          message={toastMessage} 
+          onClose={() => setToastMessage(null)} 
+        />
+      )}
     </CartContext.Provider>
   );
 };

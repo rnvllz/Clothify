@@ -1,7 +1,12 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Link } from "react-router-dom";
+import { CartContext } from "../context/CartContext";
 
-const Header: React.FC = () => (
+const Header: React.FC = () => {
+  const { cartItems } = useContext(CartContext);
+  const cartCount = cartItems.reduce((total, item) => total + item.qty, 0);
+  
+  return (
   <header className="bg-white shadow-sm border-b border-gray-100">
     <div className="container mx-auto px-6 py-4">
       <div className="flex items-center justify-between">
@@ -17,14 +22,20 @@ const Header: React.FC = () => (
           </Link>
           <Link 
             to="/cart" 
-            className="text-gray-800 hover:text-black transition-colors font-light text-sm uppercase tracking-wide"
+            className="text-gray-800 hover:text-black transition-colors font-light text-sm uppercase tracking-wide relative"
           >
             Cart
+            {cartCount > 0 && (
+              <span className="absolute -top-2 -right-3 bg-black text-white text-xs font-normal rounded-full h-5 w-5 flex items-center justify-center">
+                {cartCount}
+              </span>
+            )}
           </Link>
         </nav>
       </div>
     </div>
   </header>
-);
+  );
+};
 
 export default Header;
