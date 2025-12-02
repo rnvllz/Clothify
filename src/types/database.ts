@@ -1,3 +1,5 @@
+// Database types for Clothify application
+
 export interface Database {
   public: {
     Tables: {
@@ -69,6 +71,10 @@ export interface OrderItem {
   id: string;
   title: string;
   price: number;
-  quantity: number;
-  image?: string;
+  qty: number;
+  image?: string | null;
+}
+
+export interface CartItem extends Product {
+  qty: number;
 }
