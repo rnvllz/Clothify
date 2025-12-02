@@ -1,4 +1,5 @@
 import React, { useContext } from "react";
+import { Link } from "react-router-dom";
 import { CartContext } from "../context/CartContext";
 import type { Product } from "../types/database";
 
@@ -10,7 +11,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { addToCart } = useContext(CartContext);
 
   return (
-    <div className="group bg-white overflow-hidden hover:shadow-sm transition-shadow">
+    <Link to={`/product/${product.id}`} className="group bg-white overflow-hidden hover:shadow-sm transition-shadow block">
       {product.image && (
         <div className="relative overflow-hidden aspect-square bg-gray-50">
           <img
@@ -26,14 +27,18 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <div className="flex items-center justify-between">
           <p className="text-base font-normal text-black">${product.price}</p>
           <button
-            onClick={() => addToCart(product)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              addToCart(product);
+            }}
             className="bg-black hover:bg-gray-800 text-white px-5 py-2 text-xs font-light uppercase tracking-wide transition-colors"
           >
             Add to Cart
           </button>
         </div>
       </div>
-    </div>
+    </Link>
   );
 };
 

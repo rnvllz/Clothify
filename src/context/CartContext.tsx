@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 
 interface CartContextType {
   cartItems: CartItem[];
-  addToCart: (product: Product) => void;
+  addToCart: (product: Product, size?: string) => void;
   removeFromCart: (id: string) => void;
   clearCart: () => void;
   incrementQty: (id: string) => void;
@@ -39,18 +39,18 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     localStorage.setItem("cart", JSON.stringify(cartItems));
   }, [cartItems]);
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: Product, size?: string) => {
     setCartItems((prev) => {
-      const existing = prev.find((item) => item.id === product.id);
+      const existing = prev.find((item) => item.id === product.id && item.size === size);
       if (existing) {
         return prev.map((item) =>
-          item.id === product.id ? { ...item, qty: item.qty + 1 } : item
+          item.id === product.id && item.size === size ? { ...item, qty: item.qty + 1 } : item
         );
       }
-      return [...prev, { ...product, qty: 1 }];
+      return [...prev, { ...product, qty: 1, size }];
     });
     // Show toast notification
-    toast.success(`${product.title} added to cart`, {
+    toast.success(`${product.title}${size ? ` (${size})` : ''} added to cart`, {
       duration: 3000,
       style: {
         background: '#000',
@@ -95,7 +95,8 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         title: item.title,
         price: item.price,
         qty: item.qty,
-        image: item.image
+        image: item.image,
+        size: item.size
       })),
       total: parseFloat(total.toFixed(2))
     };

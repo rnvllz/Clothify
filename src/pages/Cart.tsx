@@ -44,6 +44,9 @@ const handleClear = () => {
                     )}
                     <div className="flex-1">
                       <h3 className="text-black font-light text-sm">{item.title}</h3>
+                      {item.size && (
+                        <p className="text-xs text-gray-500 font-light mt-1">Size: {item.size}</p>
+                      )}
                       <div className="flex items-center space-x-3 mt-3">
                         <button
                           onClick={() => decrementQty(item.id)}

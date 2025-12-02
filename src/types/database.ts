@@ -79,8 +79,10 @@ export interface OrderItem {
   price: number;
   qty: number;
   image?: string | null;
+  size?: string;
 }
 
 export interface CartItem extends Product {
   qty: number;
+  size?: string;
 }

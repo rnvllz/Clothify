@@ -110,11 +110,11 @@ const Header: React.FC = () => {
           </Link>
           <Link 
             to="/cart" 
-            className="text-gray-800 hover:text-black transition-colors font-light text-sm uppercase tracking-wide relative"
+            className="text-gray-800 hover:text-black transition-colors font-light text-sm uppercase tracking-wide flex items-center gap-2"
           >
             Cart
             {cartCount > 0 && (
-              <span className="absolute -top-2 -right-3 bg-black text-white text-xs font-normal rounded-full h-5 w-5 flex items-center justify-center">
+              <span className="bg-black text-white text-xs font-normal rounded-full h-5 w-5 flex items-center justify-center">
                 {cartCount}
               </span>
             )}
