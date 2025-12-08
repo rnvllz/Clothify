@@ -1,9 +1,8 @@
 import React, { useState, useEffect, FormEvent, ChangeEvent } from "react";
-import { productService, storageService } from "../api/api";
+import { productService, storageService, categoryService } from "../api/api";
 import { nanoid } from "nanoid";
-import type { Product } from "../types/database";
+import type { Product, Category } from "../types/database";
 import toast from "react-hot-toast";
-import { CATEGORIES } from "../constants/categories";
 
 
 
@@ -11,6 +10,7 @@ const Admin: React.FC = () => {
   const [authorized, setAuthorized] = useState<boolean>(false);
   const [tokenInput, setTokenInput] = useState<string>("");
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [message, setMessage] = useState<string>("");
 
   // Login check
@@ -23,7 +23,10 @@ const Admin: React.FC = () => {
 
   // Fetch products
   useEffect(() => {
-    if (authorized) fetchProducts();
+    if (authorized) {
+      fetchProducts();
+      fetchCategories();
+    }
   }, [authorized]);
 
   const fetchProducts = async () => {
@@ -32,6 +35,15 @@ const Admin: React.FC = () => {
       setProducts(data);
     } catch (error) {
       console.error("Error fetching products:", error);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const data = await categoryService.getAll();
+      setCategories(data);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
     }
   };
 
@@ -106,7 +118,7 @@ const Admin: React.FC = () => {
       <div className="grid lg:grid-cols-2 gap-12">
         <div>
           <h2 className="text-sm text-black mb-6 uppercase tracking-wide">Add Product</h2>
-          <AddProductForm refreshProducts={fetchProducts} />
+          <AddProductForm refreshProducts={fetchProducts} categories={categories} />
 
           <h2 className="text-sm text-black mt-8 mb-6 uppercase tracking-wide">Existing Products</h2>
           <div className="space-y-4">
@@ -121,11 +133,13 @@ const Admin: React.FC = () => {
                   <div className="flex-1">
                     <h3 className="text-black text-sm">{p.title}</h3>
                     <p className="text-gray-600 text-xs mt-1">${p.price}</p>
-                    <p className="text-gray-500 text-xs mt-1">{p.category}</p>
+                    <p className="text-gray-500 text-xs mt-1">
+                      {categories.find(c => c.id === p.category_id)?.name || 'No category'}
+                    </p>
                     <p className="text-gray-500 text-xs mt-1">{p.description}</p>
                   </div>
                   <div className="flex gap-4 items-start">
-                    <EditProductForm product={p} refreshProducts={fetchProducts} />
+                    <EditProductForm product={p} refreshProducts={fetchProducts} categories={categories} />
                     <button
                       onClick={() => handleDelete(p.id, p.image)}
                       className="text-gray-400 hover:text-black text-xs uppercase tracking-wide transition-colors"
@@ -148,13 +162,14 @@ export default Admin;
 // ---------------- AddProductForm ----------------
 interface AddProductFormProps {
   refreshProducts: () => void;
+  categories: Category[];
 }
 
-const AddProductForm: React.FC<AddProductFormProps> = ({ refreshProducts }) => {
+const AddProductForm: React.FC<AddProductFormProps> = ({ refreshProducts, categories }) => {
   const [title, setTitle] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [price, setPrice] = useState<string>("");
-  const [category, setCategory] = useState<string>(CATEGORIES[0]);
+  const [categoryId, setCategoryId] = useState<string>("");
   const [image, setImage] = useState<File | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
 
@@ -174,7 +189,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ refreshProducts }) => {
         title,
         description,
         price: parseFloat(price),
-        category,
+        category_id: categoryId || null,
         image: imageUrl,
       });
 
@@ -183,7 +198,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ refreshProducts }) => {
       setTitle("");
       setDescription("");
       setPrice("");
-      setCategory(CATEGORIES[0]);
+      setCategoryId(categories[0]?.id || "");
       setImage(null);
       refreshProducts();
     } catch (error) {
@@ -235,14 +250,15 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ refreshProducts }) => {
       <div>
         <label className="block text-xs text-gray-600 mb-2 uppercase tracking-wide">Category</label>
         <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
           required
           className="w-full border border-gray-300 px-4 py-3 text-black focus:outline-none focus:border-black text-sm"
         >
-          {CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
+          <option value="">Select a category</option>
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
             </option>
           ))}
         </select>
@@ -280,14 +296,15 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ refreshProducts }) => {
 interface EditProductFormProps {
   product: Product;
   refreshProducts: () => void;
+  categories: Category[];
 }
 
-const EditProductForm: React.FC<EditProductFormProps> = ({ product, refreshProducts }) => {
+const EditProductForm: React.FC<EditProductFormProps> = ({ product, refreshProducts, categories }) => {
   const [editing, setEditing] = useState<boolean>(false);
   const [title, setTitle] = useState<string>(product.title);
   const [description, setDescription] = useState<string>(product.description || "");
   const [price, setPrice] = useState<string>(product.price.toString());
-  const [category, setCategory] = useState<string>(product.category);
+  const [categoryId, setCategoryId] = useState<string>(product.category_id || "");
   const [image, setImage] = useState<File | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
 
@@ -296,11 +313,11 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, refreshProdu
     setUploading(true);
 
     try {
-      const updates: { title: string; description: string; price: number; category: string; image?: string } = {
+      const updates: { title: string; description: string; price: number; category_id: string; image?: string } = {
         title,
         description,
         price: parseFloat(price),
-        category,
+        category_id: categoryId,
       };
 
       if (image) {
@@ -365,14 +382,15 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, refreshProdu
         <div>
           <label className="block text-xs text-gray-600 mb-2 uppercase tracking-wide">Category</label>
           <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
             required
             className="w-full border border-gray-300 px-4 py-3 text-black focus:outline-none focus:border-black text-sm"
           >
-            {CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
+            <option value="">Select a category</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
               </option>
             ))}
           </select>

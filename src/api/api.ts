@@ -1,5 +1,5 @@
 import { createClient, } from '@supabase/supabase-js';
-import type { Product, ProductInsert, ProductUpdate, Order, OrderInsert } from '../types/database';
+import type { Product, ProductInsert, ProductUpdate, Order, OrderInsert, Category, Gender } from '../types/database';
 
 
 // Initialize Supabase client
@@ -23,11 +23,22 @@ export const productService = {
   },
 
   // Get products by category
-  async getByCategory(category: string): Promise<Product[]> {
+  async getByCategory(categorySlug: string): Promise<Product[]> {
+    // First get the category ID
+    const { data: categoryData, error: categoryError } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('slug', categorySlug.toLowerCase())
+      .single();
+    
+    if (categoryError) throw categoryError;
+    if (!categoryData) throw new Error(`Category '${categorySlug}' not found`);
+
+    // Then get products with that category_id
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .eq('category', category)
+      .eq('category_id', categoryData.id)
       .order('created_at', { ascending: false });
     
     if (error) throw error;
@@ -58,21 +69,17 @@ export const productService = {
   },
 
   // Create product
-  async create(orderData: OrderInsert): Promise<Order> {
-  console.log('Inserting order:', JSON.stringify(orderData, null, 2));
+  async create(productData: ProductInsert): Promise<Product> {
+    const { data, error } = await supabase
+      .from('products')
+      .insert([productData])
+      .select()
+      .single();
 
-  const { data, error } = await supabase
-    .from('orders')
-    .insert([orderData])
-    .select()
-    .single();
-
-  console.log('Supabase insert response:', { data, error });
-
-  if (error) throw error;
-  if (!data) throw new Error('Failed to create order');
-  return data;
-},
+    if (error) throw error;
+    if (!data) throw new Error('Failed to create product');
+    return data;
+  },
 
   // Update product
   async update(id: string, updates: ProductUpdate): Promise<Product> {
@@ -96,6 +103,58 @@ export const productService = {
       .eq('id', id);
     
     if (error) throw error;
+  }
+};
+
+// Category service
+export const categoryService = {
+  // Get all categories
+  async getAll(): Promise<Category[]> {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('name', { ascending: true });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get category by slug
+  async getBySlug(slug: string): Promise<Category | null> {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('slug', slug)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  }
+};
+
+// Gender service
+export const genderService = {
+  // Get all genders
+  async getAll(): Promise<Gender[]> {
+    const { data, error } = await supabase
+      .from('genders')
+      .select('*')
+      .order('name', { ascending: true });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get gender by slug
+  async getBySlug(slug: string): Promise<Gender | null> {
+    const { data, error } = await supabase
+      .from('genders')
+      .select('*')
+      .eq('slug', slug)
+      .single();
+    
+    if (error) throw error;
+    return data;
   }
 };
 
@@ -145,6 +204,8 @@ export const storageService = {
     if (urlParts.length < 2) return;
     
     const filePath = urlParts[1];
+    if (!filePath) return;
+    
     const { error } = await supabase.storage
       .from('product-images')
       .remove([filePath]);

@@ -13,8 +13,29 @@ export interface Database {
         Insert: OrderInsert;
         Update: OrderUpdate;
       };
+      categories: {
+        Row: Category;
+      };
+      genders: {
+        Row: Gender;
+      };
     };
   };
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  created_at: string;
+}
+
+export interface Gender {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: string;
 }
 
 export interface Product {
