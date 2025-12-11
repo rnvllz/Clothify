@@ -1,7 +1,8 @@
 import React, { useContext, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CartContext } from "../context/CartContext";
-import { Search20Regular } from "@fluentui/react-icons";
+import { Search20Regular, ShoppingBag20Regular } from "@fluentui/react-icons";
+import logo from "../assets/logo.svg";
 
 const Header: React.FC = () => {
   const { cartItems } = useContext(CartContext);
@@ -45,45 +46,14 @@ const Header: React.FC = () => {
   }`}>
     <div className="container mx-auto px-6 py-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-6">
-          <Link to="/" className="text-2xl font-light text-black tracking-wider">
-            CLOTHIFY
-          </Link>
+        {/* Logo */}
+        <Link to="/" className="flex items-center gap-3 flex-shrink-0">
+          <img src={logo} alt="Clothify Logo" className="h-10 w-10" />
+          <span className="text-2xl font-light text-black tracking-wider">CLOTHIFY</span>
+        </Link>
 
-          {/* Search Icon with Expandable Input */}
-          <div 
-            className="relative group"
-            onMouseEnter={() => setIsSearchOpen(true)}
-            onMouseLeave={() => {
-              if (!searchQuery) setIsSearchOpen(false);
-            }}
-          >
-            <form onSubmit={handleSearch} className="flex items-center">
-              {/* Search Icon */}
-              <button
-                type="button"
-                className="text-gray-800 hover:text-black transition-colors"
-                aria-label="Search"
-              >
-                <Search20Regular />
-              </button>
-
-              {/* Expandable Search Input */}
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`ml-2 px-3 py-1 text-sm text-black bg-white border border-gray-300 rounded focus:outline-none focus:border-black transition-all duration-300 ${
-                  isSearchOpen ? 'w-64 opacity-100' : 'w-0 opacity-0 border-transparent'
-                }`}
-                onFocus={() => setIsSearchOpen(true)}
-              />
-            </form>
-          </div>
-        </div>
-
-        <nav className="flex items-center space-x-8">
+        {/* Center Navigation */}
+        <nav className="flex items-center space-x-8 flex-1 justify-center">
           <Link 
             to="/" 
             className="text-gray-800 hover:text-black transition-colors font-light text-sm uppercase tracking-wide"
@@ -109,17 +79,61 @@ const Header: React.FC = () => {
             Collection
           </Link>
           <Link 
-            to="/cart" 
-            className="text-gray-800 hover:text-black transition-colors font-light text-sm uppercase tracking-wide flex items-center gap-2"
+            to="/accessories" 
+            className="text-gray-800 hover:text-black transition-colors font-light text-sm uppercase tracking-wide"
           >
-            Cart
+            Accessories
+          </Link>
+        </nav>
+
+        {/* Right Side: Cart and Search */}
+        <div className="flex items-center space-x-6 shrink-0">
+          {/* Cart Icon */}
+          <Link 
+            to="/cart" 
+            className="text-gray-800 hover:text-black transition-colors relative shrink-0"
+            aria-label="Cart"
+          >
+            <ShoppingBag20Regular />
             {cartCount > 0 && (
-              <span className="bg-black text-white text-xs font-normal rounded-full h-5 w-5 flex items-center justify-center">
+              <span className="absolute -top-2 -right-2 bg-black text-white text-xs font-normal rounded-full h-5 w-5 flex items-center justify-center">
                 {cartCount}
               </span>
             )}
           </Link>
-        </nav>
+
+          {/* Search Icon with Expandable Input - Absolute positioned to avoid pushing layout */}
+          <div 
+            className="relative w-6"
+            onMouseEnter={() => setIsSearchOpen(true)}
+            onMouseLeave={() => {
+              if (!searchQuery) setIsSearchOpen(false);
+            }}
+          >
+            <form onSubmit={handleSearch} className="flex items-center">
+              {/* Search Icon */}
+              <button
+                type="button"
+                className="text-gray-800 hover:text-black transition-colors absolute left-0"
+                aria-label="Search"
+              >
+                <Search20Regular />
+              </button>
+
+              {/* Expandable Search Input */}
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`absolute left-6 px-3 py-1 text-sm text-black bg-white border border-gray-300 rounded focus:outline-none focus:border-black transition-all duration-300 ${
+                  isSearchOpen ? 'w-48 opacity-100' : 'w-0 opacity-0 border-transparent'
+                }`}
+                onFocus={() => setIsSearchOpen(true)}
+              />
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   </header>
