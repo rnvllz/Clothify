@@ -9,11 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "tunnel": "ngrok http 5173",
-    "dev:tunnel": "concurrently \"npm run dev\" \"npm run tunnel\"",
-    "backend": "cd backend && npm install && npm start",
-    "backend:dev": "cd backend && npm install && npm run dev",
-    "backend:watch": "cd backend && npm install && npm run dev:watch",
-    "test:captcha": "node test-captcha-apis.js"
+    "dev:tunnel": "concurrently \"npm run dev\" \"npm run tunnel\""
   },
   "dependencies": {
     "@fluentui/react-icons": "^2.0.315",
