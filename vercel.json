@@ -2,6 +2,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "env": {
-    "RECAPTCHA_SECRET_KEY": "@recaptcha_secret_key"
+    "RECAPTCHA_SECRET_KEY": "@recaptcha_secret_key",
+    "RECAPTCHA_SCORE_THRESHOLD": "0.3"
   }
 }

@@ -48,19 +48,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }).toString(),
     });
 
-    const data: CaptchaVerifyResponse = await response.json();
+    const data: CaptchaVerifyResponse = await response.json() as CaptchaVerifyResponse;
     const { success, score, action } = data;
 
     // reCAPTCHA v3 returns a score between 0 and 1
     // 0 = likely bot, 1 = likely human
-    // We'll accept scores above 0.5
-    if (success && score >= 0.5 && action === "login") {
+    // For demo/test keys, we use a lower threshold (0.3)
+    // For production, increase to 0.5 or higher
+    const scoreThreshold = process.env.RECAPTCHA_SCORE_THRESHOLD ? parseFloat(process.env.RECAPTCHA_SCORE_THRESHOLD) : 0.3;
+    
+    if (success && score >= scoreThreshold && action === "login") {
       return res.json({ success: true, score });
     } else {
       return res.json({
         success: false,
         score,
-        message: "CAPTCHA verification failed",
+        message: `CAPTCHA verification failed. Score: ${score}, Threshold: ${scoreThreshold}`,
       });
     }
   } catch (error) {

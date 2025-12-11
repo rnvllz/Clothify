@@ -27,7 +27,7 @@ const Footer: React.FC = () => (
       </div>
       <div className="border-t border-gray-100 mt-8 pt-8 text-center">
         <p className="text-gray-500 text-sm font-light">
-          © 2024 CLOTHIFY. All rights reserved.
+          © 2025 CLOTHIFY. All rights reserved.
         </p>
       </div>
     </div>
