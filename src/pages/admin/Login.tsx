@@ -23,7 +23,8 @@ const Login: React.FC = () => {
   // Load reCAPTCHA script and hide badge
   useEffect(() => {
     const script = document.createElement("script");
-    script.src = "https://www.google.com/recaptcha/api.js?render=6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
+    const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
+    script.src = `https://www.google.com/recaptcha/api.js?render=${siteKey}`;
     script.async = true;
     script.defer = true;
     document.body.appendChild(script);
@@ -73,7 +74,8 @@ const Login: React.FC = () => {
 
       // Generate reCAPTCHA token
       if (window.grecaptcha) {
-        const token = await window.grecaptcha.execute("6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI", {
+        const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
+        const token = await window.grecaptcha.execute(siteKey, {
           action: "login",
         });
         setCaptchaToken(token);
@@ -107,7 +109,8 @@ const Login: React.FC = () => {
       }
 
       // Verify CAPTCHA token with backend
-      const response = await fetch("/api/captcha", {
+      const apiUrl = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/captcha` : "/api/captcha";
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

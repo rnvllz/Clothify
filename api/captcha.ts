@@ -48,7 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }).toString(),
     });
 
-    const data: CaptchaVerifyResponse = await response.json();
+    const data = (await response.json()) as CaptchaVerifyResponse;
     const { success, score, action } = data;
 
     // reCAPTCHA v3 returns a score between 0 and 1
