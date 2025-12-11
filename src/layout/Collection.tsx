@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { productService } from "../api/api";
 import ProductCard from "../components/ProductCard";
+import ProductGridSkeleton from "../components/ProductGridSkeleton";
 import type { Product } from "../types/database";
 
 interface CategoryPageProps {
@@ -39,8 +40,12 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ title, description, filterT
   }, [filterType, filterValue]);
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <p className="text-gray-600 font-light text-sm">Loading products...</p>
+    <div className="container mx-auto px-6 py-16">
+      <div className="mb-12">
+        <h1 className="text-4xl font-light text-black mb-2 tracking-wide">{title}</h1>
+        <p className="text-gray-500 font-light text-sm">{description}</p>
+      </div>
+      <ProductGridSkeleton />
     </div>
   );
   

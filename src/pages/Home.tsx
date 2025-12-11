@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import ProductCard from "../components/ProductCard";
+import ProductGridSkeleton from "../components/ProductGridSkeleton";
 import { productService } from "../api/api";
 import type { Product } from "../types/database";
 import HeroImg from "../assets/HeroImg.png";
@@ -66,9 +67,7 @@ const Home: React.FC = () => {
         </div>
         
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <p className="text-gray-600 font-light text-sm">Loading products...</p>
-          </div>
+          <ProductGridSkeleton count={4} />
         ) : products.length === 0 ? (
           <p className="text-center text-gray-600 font-light">No products available</p>
         ) : (

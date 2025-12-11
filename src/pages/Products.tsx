@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { productService } from "../api/api";
 import ProductCard from "../components/ProductCard";
+import ProductGridSkeleton from "../components/ProductGridSkeleton";
 import type { Product } from "../types/database";
 import { CATEGORIES } from "../constants/categories";
 
@@ -48,8 +49,12 @@ const Products: React.FC = () => {
   }, [searchQuery, products]);
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <p className="text-gray-600 font-light text-sm">Loading products...</p>
+    <div className="container mx-auto px-6 py-16">
+      <div className="mb-12">
+        <h1 className="text-4xl font-light text-black mb-2 tracking-wide">OUR COLLECTION</h1>
+        <p className="text-gray-500 font-light text-sm">Loading products...</p>
+      </div>
+      <ProductGridSkeleton />
     </div>
   );
   

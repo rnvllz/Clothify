@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { productService } from "../api/api";
 import { CartContext } from "../context/CartContext";
+import ProductDetailSkeleton from "../components/ProductDetailSkeleton";
 import type { Product } from "../types/database";
 
 const ProductView: React.FC = () => {
@@ -55,11 +56,7 @@ const ProductView: React.FC = () => {
     }
   };
 
-  if (loading) return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <p className="text-gray-600 font-light text-sm">Loading product...</p>
-    </div>
-  );
+  if (loading) return <ProductDetailSkeleton />;
 
   if (error || !product) return (
     <div className="flex items-center justify-center min-h-[60vh]">
