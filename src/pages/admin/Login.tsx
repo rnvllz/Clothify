@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../../api/api";
 import toast from "react-hot-toast";
@@ -12,11 +12,14 @@ declare global {
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  const turnstileRef = useRef<any>(null);
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCaptcha, setShowCaptcha] = useState<boolean>(false);
+  const [captchaAttempting, setCaptchaAttempting] = useState<boolean>(false);
 
   // Load Cloudflare Turnstile script
   useEffect(() => {
@@ -27,25 +30,22 @@ const Login: React.FC = () => {
     document.body.appendChild(script);
 
     return () => {
-      document.body.removeChild(script);
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
     };
   }, []);
 
-  // Initialize Turnstile widget after script loads
+  // Initialize Turnstile widget when modal opens
   useEffect(() => {
-    const checkTurnstile = setInterval(() => {
-      if (window.turnstile) {
-        clearInterval(checkTurnstile);
-        const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA";
-        window.turnstile.render("#turnstile-container", {
-          sitekey: siteKey,
-          theme: "light",
-        });
-      }
-    }, 100);
-
-    return () => clearInterval(checkTurnstile);
-  }, []);
+    if (showCaptcha && window.turnstile && !turnstileRef.current) {
+      const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA";
+      turnstileRef.current = window.turnstile.render("#turnstile-modal-container", {
+        sitekey: siteKey,
+        theme: "light",
+      });
+    }
+  }, [showCaptcha]);
 
   // Check if already logged in
   useEffect(() => {
@@ -65,27 +65,38 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
 
     try {
       if (!email || !password) {
         setError("Please enter both email and password");
-        setLoading(false);
         return;
       }
 
-      // Get Turnstile token
+      // Show CAPTCHA modal
+      setShowCaptcha(true);
+    } catch (err: any) {
+      console.error("Form error:", err);
+      setError(err.message || "An error occurred");
+    }
+  };
+
+  // Handle CAPTCHA verification
+  const handleCaptchaVerify = async () => {
+    setCaptchaAttempting(true);
+    setError(null);
+
+    try {
       if (!window.turnstile) {
-        setError("CAPTCHA not loaded. Please refresh the page.");
-        setLoading(false);
+        setError("CAPTCHA not loaded. Please try again.");
+        setCaptchaAttempting(false);
         return;
       }
 
       const token = window.turnstile.getResponse();
       if (!token) {
         setError("Please complete the CAPTCHA verification");
-        setLoading(false);
+        setCaptchaAttempting(false);
         return;
       }
 
@@ -102,8 +113,6 @@ const Login: React.FC = () => {
         });
 
         if (!verifyResponse.ok) {
-          // If verification endpoint not available, just proceed with login
-          // In production, you should configure the serverless function properly
           console.warn("Turnstile verification endpoint not available, proceeding with login");
         } else {
           const verifyData = await verifyResponse.json();
@@ -111,18 +120,19 @@ const Login: React.FC = () => {
           if (!verifyData.success) {
             setError("CAPTCHA verification failed. Please try again.");
             window.turnstile.reset();
-            setLoading(false);
+            setCaptchaAttempting(false);
             return;
           }
         }
       } catch (err) {
-        // Network error - log but don't block login
         console.warn("Could not verify CAPTCHA, proceeding with login:", err);
       }
 
-      // Proceed with login
+      // CAPTCHA verified, proceed with login
+      setLoading(true);
       await authService.login(email, password);
       toast.success("Login successful!");
+      setShowCaptcha(false);
       navigate("/admin");
     } catch (err: any) {
       console.error("Login error:", err);
@@ -132,7 +142,15 @@ const Login: React.FC = () => {
       window.turnstile?.reset();
     } finally {
       setLoading(false);
+      setCaptchaAttempting(false);
     }
+  };
+
+  const handleCaptchaCancel = () => {
+    setShowCaptcha(false);
+    window.turnstile?.reset();
+    turnstileRef.current = null;
+    setError(null);
   };
 
   return (
@@ -209,9 +227,6 @@ const Login: React.FC = () => {
               </div>
             </div>
 
-            {/* Turnstile Widget */}
-            <div id="turnstile-container" className="flex justify-center"></div>
-
             <button
               type="submit"
               disabled={loading}
@@ -233,6 +248,45 @@ const Login: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* CAPTCHA Modal */}
+      {showCaptcha && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
+            <h3 className="text-xl font-bold text-black mb-6">Security Verification</h3>
+            
+            {/* Error Message in Modal */}
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded">
+                <p className="text-red-600 text-sm font-light">{error}</p>
+              </div>
+            )}
+
+            {/* Turnstile Container */}
+            <div id="turnstile-modal-container" className="flex justify-center mb-6"></div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleCaptchaCancel}
+                disabled={captchaAttempting || loading}
+                className="flex-1 border border-gray-300 text-black px-4 py-2 rounded font-medium hover:bg-gray-50 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCaptchaVerify}
+                disabled={captchaAttempting || loading}
+                className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded font-medium transition-colors"
+              >
+                {captchaAttempting ? "Verifying..." : "Verify"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Right Section - Image (Hidden on Mobile) */}
       <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-gray-100 pt-6">
