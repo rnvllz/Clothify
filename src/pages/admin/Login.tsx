@@ -21,6 +21,11 @@ const Login: React.FC = () => {
 
   // Load Cloudflare Turnstile script
   useEffect(() => {
+    // Only load if not already loaded
+    if (window.turnstile) {
+      return;
+    }
+
     const script = document.createElement("script");
     script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
     script.async = true;
@@ -28,25 +33,38 @@ const Login: React.FC = () => {
     document.body.appendChild(script);
 
     return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
+      // Don't remove script as it may be used elsewhere
     };
   }, []);
 
   // Initialize Turnstile widget in form
   useEffect(() => {
-    const checkTurnstile = setInterval(() => {
+    let checkTurnstile: NodeJS.Timeout;
+    let attempts = 0;
+    const maxAttempts = 50; // Max 5 seconds (50 * 100ms)
+
+    const initializeTurnstile = () => {
       if (window.turnstile && document.getElementById("turnstile-container")) {
         clearInterval(checkTurnstile);
         const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA";
-        window.turnstile.render("#turnstile-container", {
-          sitekey: siteKey,
-          theme: "light",
-          size: "normal",
-        });
+        try {
+          window.turnstile.render("#turnstile-container", {
+            sitekey: siteKey,
+            theme: "light",
+            size: "normal",
+          });
+        } catch (err) {
+          console.warn("Turnstile render error:", err);
+        }
+      } else if (attempts < maxAttempts) {
+        attempts++;
+      } else {
+        clearInterval(checkTurnstile);
+        console.warn("Turnstile failed to load after 5 seconds");
       }
-    }, 100);
+    };
+
+    checkTurnstile = setInterval(initializeTurnstile, 100);
 
     return () => clearInterval(checkTurnstile);
   }, []);
@@ -207,6 +225,7 @@ const Login: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
+                autoComplete="email"
                 className="w-full border border-gray-300 px-4 py-3 text-black placeholder:text-gray-400 focus:outline-none focus:border-black text-sm disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors rounded"
               />
             </div>
@@ -222,6 +241,7 @@ const Login: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
+                  autoComplete="current-password"
                   className="w-full border border-gray-300 px-4 py-3 pr-10 text-black placeholder:text-gray-400 focus:outline-none focus:border-black text-sm disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors rounded"
                 />
                 <button
