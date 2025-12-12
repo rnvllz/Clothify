@@ -45,6 +45,7 @@ const Home: React.FC = () => {
               </Link>
             </div>
             
+            <div>TESTING</div>
             {/* Hero Image */}
             <div className="relative lg:absolute lg:right-0 lg:top-0 lg:h-full lg:w-1/2">
               <div className="transform rotate-3 lg:rotate-6">
