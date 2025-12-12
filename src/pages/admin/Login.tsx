@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../../api/api";
 import toast from "react-hot-toast";
@@ -12,7 +12,6 @@ declare global {
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const turnstileRef = useRef<any>(null);
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -144,9 +143,6 @@ const Login: React.FC = () => {
             </div>
           )}
 
-          {/* CAPTCHA Modal */}
-          {showCaptcha && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>

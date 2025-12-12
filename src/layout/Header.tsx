@@ -47,7 +47,7 @@ const Header: React.FC = () => {
     <div className="container mx-auto px-6 py-4">
       <div className="flex items-center justify-between">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-3 flex-shrink-0">
+        <Link to="/" className="flex items-center gap-3 shrink-0">
           <img src={logo} alt="Clothify Logo" className="h-10 w-10" />
           <span className="text-2xl font-light text-black tracking-wider">CLOTHIFY</span>
         </Link>

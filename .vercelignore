@@ -1,4 +1,6 @@
-/*
-!api
-!vercel.json
-!*.html
+backend/
+node_modules/
+.git/
+database/
+CAPTCHA_SETUP.md
+supabase-migration.sql

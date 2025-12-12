@@ -38,7 +38,7 @@ const handleClear = () => {
                 <div key={item.id} className="p-6 flex items-center justify-between">
                   <div className="flex items-center space-x-6 flex-1">
                     {item.image && (
-                      <div className="w-24 h-24 bg-gray-50 flex-shrink-0">
+                      <div className="w-24 h-24 bg-gray-50 shrink-0">
                         <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
                       </div>
                     )}
@@ -54,7 +54,7 @@ const handleClear = () => {
                         >
                           −
                         </button>
-                        <span className="text-black font-light text-sm min-w-[2rem] text-center">{item.qty}</span>
+                        <span className="text-black font-light text-sm min-w-8 text-center">{item.qty}</span>
                         <button
                           onClick={() => incrementQty(item.id)}
                           className="w-7 h-7 flex items-center justify-center border border-gray-300 hover:bg-gray-100 text-black transition-colors"
