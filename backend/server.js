@@ -26,7 +26,7 @@ import fetch from 'node-fetch';
 import process from 'process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const envPath = path.join(__dirname, '..', '.env');
+const envPath = path.join(__dirname, '.env');
 
 // Load environment variables
 dotenv.config({ path: envPath });
@@ -193,7 +193,7 @@ app.listen(PORT, () => {
   console.log('━'.repeat(60));
   console.log('\n💡 Available endpoints:');
   console.log('  GET  /health              - Server health check');
-  console.log('  POST /api/captcha         - CAPTCHA verification');
+  console.log('  POST /api/turnstile       - CAPTCHA verification');
   console.log('\n🌐 With ngrok:');
   console.log('  Terminal: ngrok http 3001');
   console.log('  Update VITE_API_URL to your ngrok URL');
