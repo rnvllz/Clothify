@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./layout/Layout";
+import SupportLayout from "./layout/SupportLayout";
 import Home from "./pages/Home";
 import Products from "./pages/products/Products";
 import ProductView from "./pages/products/ProductView";
@@ -14,7 +15,10 @@ import Admin from "./pages/admin/Admin";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import Tracking from "./pages/Tracking";
-import Support from "./pages/Support";
+import ContactUs from "./pages/support/ContactUs";
+import FAQ from "./pages/support/FAQ";
+import ShippingInfo from "./pages/support/ShippingInfo";
+import Returns from "./pages/support/Returns";
 import NotFound from "./pages/NotFound";
 import { Toaster } from "react-hot-toast";
 
@@ -66,7 +70,15 @@ const App: React.FC = () => {
           <Route path="/auth/reset-password" element={<ResetPassword />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/tracking" element={<Tracking />} />
-          <Route path="/support" element={<Support />} />
+          
+          <Route path="/support" element={<SupportLayout />}>
+            <Route index element={<Navigate to="/support/contact" replace />} />
+            <Route path="contact" element={<ContactUs />} />
+            <Route path="faq" element={<FAQ />} />
+            <Route path="shipping" element={<ShippingInfo />} />
+            <Route path="returns" element={<Returns />} />
+          </Route>
+
           <Route path="/admin" element={<Admin />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="*" element={<NotFound />} />
