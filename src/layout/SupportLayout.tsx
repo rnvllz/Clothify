@@ -7,6 +7,9 @@ const supportLinks = [
   { name: 'FAQ', path: '/support/faq' },
   { name: 'Shipping Info', path: '/support/shipping' },
   { name: 'Returns', path: '/support/returns' },
+  { name: 'Terms & Conditions', path: '/support/terms' },
+  { name: 'Privacy Policy', path: '/support/privacy' },
+  { name: 'Warranty', path: '/support/warranty' },
 ];
 
 const SupportLayout: React.FC = () => {
@@ -27,7 +30,7 @@ const SupportLayout: React.FC = () => {
                       'block w-full text-left px-4 py-2 text-sm font-light transition-colors',
                       location.pathname === link.path
                         ? 'bg-black text-white'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-black'
+                        : 'bg-gray-100 text-black hover:bg-gray-200'
                     )}
                   >
                     {link.name}

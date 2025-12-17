@@ -19,6 +19,9 @@ import ContactUs from "./pages/support/ContactUs";
 import FAQ from "./pages/support/FAQ";
 import ShippingInfo from "./pages/support/ShippingInfo";
 import Returns from "./pages/support/Returns";
+import TermsAndConditions from "./pages/support/TermsAndConditions";
+import PrivacyPolicy from "./pages/support/PrivacyPolicy";
+import Warranty from "./pages/support/Warranty";
 import NotFound from "./pages/NotFound";
 import { Toaster } from "react-hot-toast";
 
@@ -77,6 +80,9 @@ const App: React.FC = () => {
             <Route path="faq" element={<FAQ />} />
             <Route path="shipping" element={<ShippingInfo />} />
             <Route path="returns" element={<Returns />} />
+            <Route path="terms" element={<TermsAndConditions />} />
+            <Route path="privacy" element={<PrivacyPolicy />} />
+            <Route path="warranty" element={<Warranty />} />
           </Route>
 
           <Route path="/admin" element={<Admin />} />
