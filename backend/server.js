@@ -50,7 +50,7 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ limit: '10kb' }));
 
-
+const OTP_DEBUG = true;
 
 //EMAIL VERIFICATION
 
@@ -111,6 +111,8 @@ app.post("/api/send-code", async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Server error", message: err.message });
   }
+
+
 
 });
 
