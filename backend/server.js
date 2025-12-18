@@ -19,6 +19,8 @@ const app = express();
 const PORT = parseInt(process.env.API_PORT || '3001', 10);
 const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY;
 
+const OTP_DEBUG = true
+
 
 // Initialize Resend Emailer
 
@@ -70,19 +72,6 @@ app.post("/api/login", async (req, res) => {
     if (error) return res.status(401).json({ error: error.message });
     if (!sessionData?.user) return res.status(401).json({ error: "Invalid credentials" });
 
-    // Generate OTP
-    const code = crypto.randomInt(100000, 100000).toString(); // 6-digit
-    otpStore.set(email, { code, expiresAt: Date.now() + OTP_EXPIRATION_MS });
-
-    // Send OTP via Resend
-    await resend.emails.send({
-      from: "no-reply@clothify.com",
-      to: email,
-      subject: "Your Login Verification Code",
-      html: `<p>Your verification code is <strong>${code}</strong>. It expires in 5 minutes.</p>`,
-    });
-
-    res.json({ message: "OTP sent to email", userId: sessionData.user.id });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error", message: err.message });
@@ -95,16 +84,33 @@ app.post("/api/send-code", async (req, res) => {
     if(!email) return res.status(400).json({ error: "Missing email" });
     
     // Generate OTP
-    const code = crypto.randomInt(100000, 150000).toString(); // 6-digit
+    const code = crypto.randomInt(100000, 1000000).toString(); // 6-digit
     otpStore.set(email, { code, expiresAt: Date.now() + OTP_EXPIRATION_MS });
 
-    // Send OTP via Resend
-    await resend.emails.send({
-      from: "no-reply@sandbox.resend.com",
-      to: email,
-      subject: "Your Login Verification Code",
-      html: `<p>Your verification code is <strong>${code}</strong>. It expires in 5 minutes.</p>`,
-    });
+    if (OTP_DEBUG) {
+      console.log(`
+        ==============================
+        🔐 OTP DEBUG MODE
+        📧 Email: ${email}
+        🔢 Code: ${code}
+        ==============================
+      `);
+    } else {
+      await resend.emails.send({
+        from: "no-reply@clothify.com",
+        to: email,
+        subject: "Your Login Verification Code",
+        html: `<p>Your verification code is <strong>${code}</strong></p>`,
+      });
+    }
+
+    // // Send OTP via Resend
+    // await resend.emails.send({
+    //   from: "no-reply@sandbox.resend.com",
+    //   to: email,
+    //   subject: "Your Login Verification Code",
+    //   html: `<p>Your verification code is <strong>${code}</strong>. It expires in 5 minutes.</p>`,
+    // });
 
     res.json({ message: "OTP sent to email"});
   } catch (err) {
@@ -115,7 +121,7 @@ app.post("/api/send-code", async (req, res) => {
 });
 
 //VERIFY EMAIL CODE
-app.post("/api/mfa/verify", (req, res) => {
+app.post("/api/verify", (req, res) => {
   try {
     const { email, code } = req.body;
     if (!email || !code) return res.status(400).json({ error: "Missing email or code" });

@@ -124,7 +124,7 @@ const Login: React.FC = () => {
 
     try {
       const sanitizedEmail = sanitizeString(email);
-      const res = await fetch("/api/verify-code", {
+      const res = await fetch("/api/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: sanitizedEmail, code: otp }),
