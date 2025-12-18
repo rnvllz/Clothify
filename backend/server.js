@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-
+import { Resend } from "resend";
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -7,6 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fetch from 'node-fetch';
 import process from 'process';
+import crypto from "crypto"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '.env');
@@ -17,6 +18,11 @@ dotenv.config({ path: envPath });
 const app = express();
 const PORT = parseInt(process.env.API_PORT || '3001', 10);
 const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY;
+
+
+// Initialize Resend Emailer
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 // CORS configuration
 const allowedOrigins = [
@@ -43,6 +49,96 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ limit: '10kb' }));
+
+
+
+//EMAIL VERIFICATION
+
+// Temporary in-memory store for OTPs (for production, use Redis or DB)
+
+const otpStore = new Map();
+const OTP_EXPIRATION_MS = 5 * 60 * 1000;
+
+
+// Login endpoint (Supabase auth)
+app.post("/api/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: "Missing email or password" });
+
+    const { data: sessionData, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return res.status(401).json({ error: error.message });
+    if (!sessionData?.user) return res.status(401).json({ error: "Invalid credentials" });
+
+    // Generate OTP
+    const code = crypto.randomInt(100000, 100000).toString(); // 6-digit
+    otpStore.set(email, { code, expiresAt: Date.now() + OTP_EXPIRATION_MS });
+
+    // Send OTP via Resend
+    await resend.emails.send({
+      from: "no-reply@clothify.com",
+      to: email,
+      subject: "Your Login Verification Code",
+      html: `<p>Your verification code is <strong>${code}</strong>. It expires in 5 minutes.</p>`,
+    });
+
+    res.json({ message: "OTP sent to email", userId: sessionData.user.id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+app.post("/api/send-code", async (req, res) => {
+  try{
+    const { email } = req.body
+    if(!email) return res.status(400).json({ error: "Missing email" });
+    
+    // Generate OTP
+    const code = crypto.randomInt(100000, 150000).toString(); // 6-digit
+    otpStore.set(email, { code, expiresAt: Date.now() + OTP_EXPIRATION_MS });
+
+    // Send OTP via Resend
+    await resend.emails.send({
+      from: "no-reply@sandbox.resend.com",
+      to: email,
+      subject: "Your Login Verification Code",
+      html: `<p>Your verification code is <strong>${code}</strong>. It expires in 5 minutes.</p>`,
+    });
+
+    res.json({ message: "OTP sent to email"});
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+
+});
+
+//VERIFY EMAIL CODE
+app.post("/api/mfa/verify", (req, res) => {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) return res.status(400).json({ error: "Missing email or code" });
+
+    const record = otpStore.get(email);
+    if (!record) return res.status(400).json({ error: "OTP not found or expired" });
+
+    if (record.expiresAt < Date.now()) {
+      otpStore.delete(email);
+      return res.status(400).json({ error: "OTP expired" });
+    }
+
+    if (record.code !== code) return res.status(400).json({ error: "Invalid code" });
+
+    // OTP valid, remove it
+    otpStore.delete(email);
+    res.json({ message: "OTP verified successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
 
 // Security headers
 app.use((req, res, next) => {
