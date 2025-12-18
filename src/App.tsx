@@ -9,9 +9,6 @@ import ProductView from "./pages/products/ProductView";
 import Men from "./pages/products/Men";
 import Women from "./pages/products/Women";
 import Accessories from "./pages/products/Accessories";
-import Login from "./pages/auth/Login";
-import ForgotPassword from "./pages/auth/ForgotPassword";
-import ResetPassword from "./pages/auth/ResetPassword";
 import Admin from "./pages/admin/Admin";
 import Dashboard from "./pages/admin/Dashboard";
 import Inventory from "./pages/admin/Inventory";
@@ -28,6 +25,7 @@ import TermsAndConditions from "./pages/support/TermsAndConditions";
 import PrivacyPolicy from "./pages/support/PrivacyPolicy";
 import Warranty from "./pages/support/Warranty";
 import NotFound from "./pages/NotFound";
+import EmployeeDashboard from "./pages/employees/EmployeeDashboard";
 import { Toaster } from "react-hot-toast";
 
 
@@ -44,9 +42,7 @@ const App: React.FC = () => {
           <Route path="/men" element={<Layout><Men /></Layout>} />
           <Route path="/women" element={<Layout><Women /></Layout>} />
           <Route path="/accessories" element={<Layout><Accessories /></Layout>} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/auth/reset-password" element={<ResetPassword />} />
+          <Route path="/employee-dashboard" element={<EmployeeDashboard/>}></Route>
           <Route path="/cart" element={<Layout><Cart /></Layout>} />
           <Route path="/tracking" element={<Layout><Tracking /></Layout>} />
           <Route path="/support" element={<Layout><SupportLayout /></Layout>}>
