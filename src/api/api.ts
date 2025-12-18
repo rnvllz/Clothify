@@ -1,7 +1,6 @@
 import { createClient, } from '@supabase/supabase-js';
 import type { Product, ProductInsert, ProductUpdate, Order, OrderInsert, Category, Gender } from '../types/database';
 
-
 // Initialize Supabase client
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
@@ -292,19 +291,6 @@ export const authService = {
     if (error) throw error;
     return data;
   },
-
-  // Resend email confirmation for a user
-  async resendConfirmationEmail(email: string) {
-    // Supabase triggers confirmation email on signUp
-    const tempPassword = Math.random().toString(36).slice(-8);
-    const { data, error } = await supabase.auth.signUp(
-      { email, password: tempPassword },
-      { redirectTo: window.location.origin + "/login" }
-    );
-
-    if (error) throw error;
-    return data; // confirmation email sent automatically
-  }
 };
 
 export default supabase;

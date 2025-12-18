@@ -22,6 +22,11 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // MFA states
+  const [otp, setOtp] = useState<string>("");
+  const [mfaRequired, setMfaRequired] = useState<boolean>(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
   // Load Cloudflare Turnstile
   useEffect(() => {
     if (window.turnstile) return;
@@ -55,6 +60,7 @@ const Login: React.FC = () => {
     return () => clearInterval(checkTurnstile);
   }, []);
 
+  // Handle login submission
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -78,34 +84,65 @@ const Login: React.FC = () => {
       // Supabase login
       const session = await authService.login(sanitizedEmail, sanitizedPassword);
       if (!session?.user?.id) throw new Error("Failed to login");
+      setCurrentUserId(session.user.id);
 
-      // Check email confirmation
-      if (!session.user.email_confirmed_at) {
-        toast.error("Please confirm your email to continue.");
-        try {
-          await authService.resendConfirmationEmail(sanitizedEmail);
-          toast.success("A confirmation email has been resent to your inbox.");
-        } catch (err) {
-          console.error("Resend confirmation error:", err);
-          toast.error("Failed to resend confirmation email.");
-        }
-        return;
+      // Trigger OTP email via backend
+      try {
+        const res = await fetch("/api/send-code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: sanitizedEmail }),
+          
+        });
+
+        if (!res.ok) throw new Error("Failed to send verification code");
+        console.log(email)
+        
+        toast.success("A verification code has been sent to your email.");
+        setMfaRequired(true); // Show OTP input
+      } catch (err: any) {
+        console.error("OTP send error:", err);
+        throw new Error(err.message || "Failed to send verification code");
       }
-
-      // Fetch user role
-      const role = await userService.getUserRole(session.user.id);
-      if (!role) throw new Error("No role assigned for this user");
-
-      // Navigate based on role
-      toast.success("Login successful!");
-      if (role === "admin") navigate("/admin");
-      else navigate("/employee-dashboard");
 
     } catch (err: any) {
       console.error("Login error:", err);
       setError(err.message || "Failed to login");
       toast.error(err.message || "Failed to login");
       window.turnstile?.reset();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle OTP verification
+  const handleOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUserId) return;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const sanitizedEmail = sanitizeString(email);
+      const res = await fetch("/api/verify-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: sanitizedEmail, code: otp }),
+      });
+      if (!res.ok) throw new Error("Invalid verification code");
+
+      // Fetch user role after successful OTP
+      const role = await userService.getUserRole(currentUserId);
+      if (!role) throw new Error("No role assigned for this user");
+
+      toast.success("Verification successful!");
+      if (role === "admin") navigate("/admin");
+      else navigate("/employee-dashboard");
+
+    } catch (err: any) {
+      console.error("OTP verification error:", err);
+      setError(err.message || "Invalid code");
+      toast.error(err.message || "Invalid code");
     } finally {
       setLoading(false);
     }
@@ -126,49 +163,72 @@ const Login: React.FC = () => {
             </div>
           )}
 
-          <form onSubmit={handleLoginSubmit} className="space-y-6">
-            <div>
-              <label className="block text-xs text-black mb-2 font-medium">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={loading}
-                className="w-full border px-4 py-3 rounded"
-                placeholder="example@email.com"
-              />
-            </div>
+          {!mfaRequired ? (
+            <form onSubmit={handleLoginSubmit} className="space-y-6">
+              <div>
+                <label className="block text-xs text-black mb-2 font-medium">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
+                  className="w-full border px-4 py-3 rounded"
+                  placeholder="example@email.com"
+                />
+              </div>
 
-            <div className="relative">
-              <label className="block text-xs text-black mb-2 font-medium">Password</label>
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
-                className="w-full border px-4 py-3 rounded"
-                placeholder="Password"
-              />
+              <div className="relative">
+                <label className="block text-xs text-black mb-2 font-medium">Password</label>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                  className="w-full border px-4 py-3 rounded"
+                  placeholder="Password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={loading}
+                  className="absolute right-3 top-[48px] -translate-y-1/2 text-gray-600 hover:text-black transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+
+              <div id="turnstile-container" className="flex justify-center my-6 scale-90 origin-top"></div>
+
               <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
+                type="submit"
                 disabled={loading}
-                className="absolute right-3 top-[48px] -translate-y-1/2 text-gray-600 hover:text-black transition-colors"
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded"
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {loading ? "Signing in..." : "Sign in"}
               </button>
-            </div>
-
-            <div id="turnstile-container" className="flex justify-center my-6 scale-90 origin-top"></div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded"
-            >
-              {loading ? "Signing in..." : "Sign in"}
-            </button>
-          </form>
+            </form>
+          ) : (
+            <form onSubmit={handleOtpSubmit} className="space-y-6">
+              <div>
+                <label className="block text-xs text-black mb-2 font-medium">Verification Code</label>
+                <input
+                  type="text"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  disabled={loading}
+                  className="w-full border px-4 py-3 rounded"
+                  placeholder="Enter code"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded"
+              >
+                {loading ? "Verifying..." : "Verify Code"}
+              </button>
+            </form>
+          )}
         </div>
       </div>
 
