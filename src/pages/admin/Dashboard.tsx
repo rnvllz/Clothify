@@ -1,12 +1,73 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Users, Package, CreditCard } from 'lucide-react';
+import { ShoppingCart, Users, Package, CreditCard, TrendingUp, BarChart3 } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Area, AreaChart, Bar, BarChart, Line, LineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from 'recharts';
+
+// Sample data - in a real app, this would come from your API
+const salesData = [
+  { month: 'Jan', revenue: 45000, orders: 120 },
+  { month: 'Feb', revenue: 52000, orders: 145 },
+  { month: 'Mar', revenue: 48000, orders: 132 },
+  { month: 'Apr', revenue: 61000, orders: 168 },
+  { month: 'May', revenue: 55000, orders: 152 },
+  { month: 'Jun', revenue: 67000, orders: 185 },
+];
+
+const customerData = [
+  { month: 'Jan', newCustomers: 45, totalCustomers: 245 },
+  { month: 'Feb', newCustomers: 52, totalCustomers: 297 },
+  { month: 'Mar', newCustomers: 38, totalCustomers: 335 },
+  { month: 'Apr', newCustomers: 67, totalCustomers: 402 },
+  { month: 'May', newCustomers: 58, totalCustomers: 460 },
+  { month: 'Jun', newCustomers: 71, totalCustomers: 531 },
+];
+
+const productData = [
+  { category: 'Men', sales: 125000, inventory: 450 },
+  { category: 'Women', sales: 98000, inventory: 380 },
+  { category: 'Accessories', sales: 67000, inventory: 290 },
+  { category: 'Shoes', sales: 54000, inventory: 180 },
+];
+
+const chartConfig = {
+  revenue: {
+    label: "Revenue",
+    color: "hsl(var(--chart-1))",
+  },
+  orders: {
+    label: "Orders",
+    color: "hsl(var(--chart-2))",
+  },
+  newCustomers: {
+    label: "New Customers",
+    color: "hsl(var(--chart-3))",
+  },
+  totalCustomers: {
+    label: "Total Customers",
+    color: "hsl(var(--chart-4))",
+  },
+  sales: {
+    label: "Sales",
+    color: "hsl(var(--chart-5))",
+  },
+  inventory: {
+    label: "Inventory",
+    color: "hsl(var(--chart-6))",
+  },
+};
 
 const Dashboard: React.FC = () => {
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="flex items-center gap-2 mb-6">
+        <BarChart3 className="w-8 h-8" />
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+      </div>
+
+      {/* Quick Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Link to="/admin/products" className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
           <div className="flex items-center">
             <ShoppingCart className="w-8 h-8 text-blue-500" />
@@ -44,6 +105,109 @@ const Dashboard: React.FC = () => {
           </div>
         </Link>
       </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Revenue & Orders Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Revenue & Orders Overview
+            </CardTitle>
+            <CardDescription>Monthly revenue and order trends</CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-hidden">
+            <ChartContainer config={chartConfig} className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={salesData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stackId="1"
+                    stroke="var(--color-revenue)"
+                    fill="var(--color-revenue)"
+                    fillOpacity={0.6}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="orders"
+                    stackId="2"
+                    stroke="var(--color-orders)"
+                    fill="var(--color-orders)"
+                    fillOpacity={0.6}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        {/* Customer Growth Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Customer Growth
+            </CardTitle>
+            <CardDescription>New and total customer acquisition</CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-hidden">
+            <ChartContainer config={chartConfig} className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={customerData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Line
+                    type="monotone"
+                    dataKey="totalCustomers"
+                    stroke="var(--color-totalCustomers)"
+                    strokeWidth={3}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="newCustomers"
+                    stroke="var(--color-newCustomers)"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Product Performance Chart */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Package className="w-5 h-5" />
+            Product Category Performance
+          </CardTitle>
+          <CardDescription>Sales and inventory by product category</CardDescription>
+        </CardHeader>
+        <CardContent className="overflow-hidden">
+          <ChartContainer config={chartConfig} className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={productData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="category" />
+                <YAxis />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="sales" fill="var(--color-sales)" />
+                <Bar dataKey="inventory" fill="var(--color-inventory)" />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </CardContent>
+      </Card>
     </div>
   );
 };
