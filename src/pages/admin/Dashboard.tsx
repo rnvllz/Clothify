@@ -60,70 +60,70 @@ const chartConfig = {
 
 const Dashboard: React.FC = () => {
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-6">
-        <BarChart3 className="w-8 h-8" />
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+    <div className="container mx-auto px-4 py-6 max-w-7xl">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-6">
+        <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8" />
+        <h1 className="text-2xl sm:text-3xl font-bold">Admin Dashboard</h1>
       </div>
 
       {/* Quick Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Link to="/admin/products" className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <Link to="/admin/products" className="bg-white p-4 sm:p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
           <div className="flex items-center">
-            <ShoppingCart className="w-8 h-8 text-blue-500" />
-            <div className="ml-4">
-              <h2 className="text-xl font-semibold">Products</h2>
-              <p className="text-gray-600">Manage products</p>
+            <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500 flex-shrink-0" />
+            <div className="ml-3 sm:ml-4">
+              <h2 className="text-lg sm:text-xl font-semibold">Products</h2>
+              <p className="text-sm sm:text-base text-gray-600">Manage products</p>
             </div>
           </div>
         </Link>
-        <Link to="/admin/inventory" className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+        <Link to="/admin/inventory" className="bg-white p-4 sm:p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
           <div className="flex items-center">
-            <Package className="w-8 h-8 text-green-500" />
-            <div className="ml-4">
-              <h2 className="text-xl font-semibold">Inventory</h2>
-              <p className="text-gray-600">Track stock levels</p>
+            <Package className="w-6 h-6 sm:w-8 sm:h-8 text-green-500 flex-shrink-0" />
+            <div className="ml-3 sm:ml-4">
+              <h2 className="text-lg sm:text-xl font-semibold">Inventory</h2>
+              <p className="text-sm sm:text-base text-gray-600">Track stock levels</p>
             </div>
           </div>
         </Link>
-        <Link to="/admin/customers" className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+        <Link to="/admin/customers" className="bg-white p-4 sm:p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
           <div className="flex items-center">
-            <Users className="w-8 h-8 text-yellow-500" />
-            <div className="ml-4">
-              <h2 className="text-xl font-semibold">Customers</h2>
-              <p className="text-gray-600">View customer data</p>
+            <Users className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500 flex-shrink-0" />
+            <div className="ml-3 sm:ml-4">
+              <h2 className="text-lg sm:text-xl font-semibold">Customers</h2>
+              <p className="text-sm sm:text-base text-gray-600">View customer data</p>
             </div>
           </div>
         </Link>
-        <Link to="/admin/payments" className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+        <Link to="/admin/payments" className="bg-white p-4 sm:p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
           <div className="flex items-center">
-            <CreditCard className="w-8 h-8 text-red-500" />
-            <div className="ml-4">
-              <h2 className="text-xl font-semibold">Payments</h2>
-              <p className="text-gray-600">Manage transactions</p>
+            <CreditCard className="w-6 h-6 sm:w-8 sm:h-8 text-red-500 flex-shrink-0" />
+            <div className="ml-3 sm:ml-4">
+              <h2 className="text-lg sm:text-xl font-semibold">Payments</h2>
+              <p className="text-sm sm:text-base text-gray-600">Manage transactions</p>
             </div>
           </div>
         </Link>
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
         {/* Revenue & Orders Chart */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
+          <CardHeader className="pb-3 sm:pb-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
               Revenue & Orders Overview
             </CardTitle>
-            <CardDescription>Monthly revenue and order trends</CardDescription>
+            <CardDescription className="text-sm">Monthly revenue and order trends</CardDescription>
           </CardHeader>
-          <CardContent className="overflow-hidden">
-            <ChartContainer config={chartConfig} className="h-[300px] w-full">
+          <CardContent className="overflow-hidden pb-4 sm:pb-6">
+            <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={salesData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
+                  <XAxis dataKey="month" fontSize={12} />
+                  <YAxis fontSize={12} />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Area
                     type="monotone"
@@ -149,20 +149,20 @@ const Dashboard: React.FC = () => {
 
         {/* Customer Growth Chart */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
+          <CardHeader className="pb-3 sm:pb-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Users className="w-4 h-4 sm:w-5 sm:h-5" />
               Customer Growth
             </CardTitle>
-            <CardDescription>New and total customer acquisition</CardDescription>
+            <CardDescription className="text-sm">New and total customer acquisition</CardDescription>
           </CardHeader>
-          <CardContent className="overflow-hidden">
-            <ChartContainer config={chartConfig} className="h-[300px] w-full">
+          <CardContent className="overflow-hidden pb-4 sm:pb-6">
+            <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={customerData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
+                  <XAxis dataKey="month" fontSize={12} />
+                  <YAxis fontSize={12} />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Line
                     type="monotone"
@@ -185,21 +185,21 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Product Performance Chart */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="w-5 h-5" />
+      <Card className="mb-4 sm:mb-6">
+        <CardHeader className="pb-3 sm:pb-4">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Package className="w-4 h-4 sm:w-5 sm:h-5" />
             Product Category Performance
           </CardTitle>
-          <CardDescription>Sales and inventory by product category</CardDescription>
+          <CardDescription className="text-sm">Sales and inventory by product category</CardDescription>
         </CardHeader>
-        <CardContent className="overflow-hidden">
-          <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <CardContent className="overflow-hidden pb-4 sm:pb-6">
+          <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={productData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="category" />
-                <YAxis />
+                <XAxis dataKey="category" fontSize={12} />
+                <YAxis fontSize={12} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Bar dataKey="sales" fill="var(--color-sales)" />
                 <Bar dataKey="inventory" fill="var(--color-inventory)" />

@@ -77,30 +77,30 @@ const EmployeeDashboard: React.FC = () => {
   if (loading) return <p>Loading...</p>;
 
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-6">
-        <BarChart3 className="w-8 h-8" />
-        <h1 className="text-3xl font-bold">Employee Dashboard</h1>
+    <div className="container mx-auto px-4 py-6 max-w-7xl">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-6">
+        <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8" />
+        <h1 className="text-2xl sm:text-3xl font-bold">Employee Dashboard</h1>
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
         {/* Inventory Overview Chart */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="w-5 h-5" />
+          <CardHeader className="pb-3 sm:pb-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Package className="w-4 h-4 sm:w-5 sm:h-5" />
               Inventory Overview
             </CardTitle>
-            <CardDescription>Current stock levels vs items sold</CardDescription>
+            <CardDescription className="text-sm">Current stock levels vs items sold</CardDescription>
           </CardHeader>
-          <CardContent className="overflow-hidden">
-            <ChartContainer config={chartConfig} className="h-[300px] w-full">
+          <CardContent className="overflow-hidden pb-4 sm:pb-6">
+            <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={inventoryData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="category" />
-                  <YAxis />
+                  <XAxis dataKey="category" fontSize={12} />
+                  <YAxis fontSize={12} />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar dataKey="stock" fill="var(--color-stock)" />
                   <Bar dataKey="sold" fill="var(--color-sold)" />
@@ -112,20 +112,20 @@ const EmployeeDashboard: React.FC = () => {
 
         {/* Performance Chart */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
+          <CardHeader className="pb-3 sm:pb-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
               Monthly Performance
             </CardTitle>
-            <CardDescription>Products managed and updates made</CardDescription>
+            <CardDescription className="text-sm">Products managed and updates made</CardDescription>
           </CardHeader>
-          <CardContent className="overflow-hidden">
-            <ChartContainer config={chartConfig} className="h-[300px] w-full">
+          <CardContent className="overflow-hidden pb-4 sm:pb-6">
+            <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={performanceData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
+                  <XAxis dataKey="month" fontSize={12} />
+                  <YAxis fontSize={12} />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Line
                     type="monotone"
@@ -148,13 +148,13 @@ const EmployeeDashboard: React.FC = () => {
       </div>
 
       {/* Category Distribution Pie Chart */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Product Category Distribution</CardTitle>
-          <CardDescription>Percentage breakdown of products by category</CardDescription>
+      <Card className="mb-4 sm:mb-6">
+        <CardHeader className="pb-3 sm:pb-4">
+          <CardTitle className="text-base sm:text-lg">Product Category Distribution</CardTitle>
+          <CardDescription className="text-sm">Percentage breakdown of products by category</CardDescription>
         </CardHeader>
-        <CardContent className="overflow-hidden">
-          <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <CardContent className="overflow-hidden pb-4 sm:pb-6">
+          <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -163,7 +163,7 @@ const EmployeeDashboard: React.FC = () => {
                   cy="50%"
                   labelLine={false}
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
+                  outerRadius={70}
                   fill="#8884d8"
                   dataKey="value"
                 >
@@ -180,25 +180,29 @@ const EmployeeDashboard: React.FC = () => {
 
       {/* Product Management Section */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Edit className="w-5 h-5" />
+        <CardHeader className="pb-3 sm:pb-4">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
             Product Management
           </CardTitle>
-          <CardDescription>Manage and update product information</CardDescription>
+          <CardDescription className="text-sm">Manage and update product information</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        <CardContent className="p-4 sm:p-6">
+          <div className="space-y-3 sm:space-y-4">
             {products.map((p) => (
-              <div key={p.id} className="flex gap-4 items-center border p-4 rounded-lg hover:shadow-md transition-shadow">
-                <div>{p.image && <img src={p.image} alt={p.title} className="w-20 h-20 object-cover rounded" />}</div>
-                <div className="flex-1">
-                  <h3 className="font-semibold">{p.title}</h3>
-                  <p className="text-gray-600">${p.price}</p>
-                  <p className="text-sm text-gray-500">{categories.find((c) => c.id === p.category_id)?.name || "No category"}</p>
-                  <p className="text-sm text-gray-700 mt-1">{p.description}</p>
+              <div key={p.id} className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center border p-3 sm:p-4 rounded-lg hover:shadow-md transition-shadow">
+                <div className="flex-shrink-0">
+                  {p.image && <img src={p.image} alt={p.title} className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded" />}
                 </div>
-                <EditProductForm product={p} refreshProducts={fetchProducts} categories={categories} />
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-sm sm:text-base truncate">{p.title}</h3>
+                  <p className="text-gray-600 text-sm sm:text-base">${p.price}</p>
+                  <p className="text-xs sm:text-sm text-gray-500">{categories.find((c) => c.id === p.category_id)?.name || "No category"}</p>
+                  <p className="text-xs sm:text-sm text-gray-700 mt-1 line-clamp-2">{p.description}</p>
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-auto">
+                  <EditProductForm product={p} refreshProducts={fetchProducts} categories={categories} />
+                </div>
                 {/* Employees cannot delete products */}
               </div>
             ))}
