@@ -4,11 +4,12 @@ import { customerService, supportTicketService } from '../../api/api';
 interface Customer {
   user_id: string;
   email: string;
+  customer_name?: string;
   user_created_at: string;
   last_sign_in_at: string | null;
   email_confirmed_at: string | null;
   role: string;
-  role_assigned_at: string;
+  role_assigned_at: string | null;
 }
 
 interface SupportTicket {
@@ -44,10 +45,12 @@ const EmployeeCustomers: React.FC = () => {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
+      console.log('🔍 Fetching customers from support tickets...');
       const customersData = await customerService.getAll();
+      console.log('✅ Customers fetched:', customersData);
       setCustomers(customersData);
     } catch (err) {
-      console.error('Error fetching customers:', err);
+      console.error('❌ Error fetching customers:', err);
       setError('Failed to load customers');
     } finally {
       setLoading(false);

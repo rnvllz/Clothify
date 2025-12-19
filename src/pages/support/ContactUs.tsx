@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supportTicketService, supportTicketCategoryService, authService, supportTicketAttachmentService } from '../../api/api';
+import { supportTicketService, supportTicketCategoryService, authService, supportTicketAttachmentService, supabase } from '../../api/api';
 import { SupportTicketCategory, SupportTicket } from '../../types/database';
 import { MessageSquare, AlertCircle, CheckCircle, Clock, User } from 'lucide-react';
 
@@ -179,56 +179,68 @@ const ContactUs: React.FC = () => {
     setSubmitError(null);
 
     try {
+      // Get user info if authenticated
       let customerId: string | null = null;
       let customerEmail = formData.email;
       let customerName = `${formData.firstName} ${formData.lastName}`.trim();
 
-      // If user is authenticated, use their account info
       if (isAuthenticated) {
-        const user = await authService.getCurrentUser();
-        if (user) {
-          customerId = user.id;
-          customerEmail = user.email || formData.email;
+        try {
+          const user = await authService.getCurrentUser();
+          if (user) {
+            customerId = user.id;
+            customerEmail = user.email || formData.email;
+          }
+        } catch (authError) {
+          console.warn('Auth check failed, proceeding as anonymous:', authError);
         }
       }
 
-      // Map subject to category ID
-      const selectedCategory = categories.find(cat => cat.name === formData.subject);
-      if (!selectedCategory) {
-        throw new Error('Invalid category selected');
-      }
-
-      // Create the ticket
+      // Prepare ticket data - keep it simple
       const ticketData = {
         customer_id: customerId,
         customer_email: customerEmail,
         customer_name: customerName,
-        subject: `${formData.subject}${formData.orderNumber ? ` - Order ${formData.orderNumber}` : ''}`,
-        description: `Name: ${customerName}
-Email: ${customerEmail}
-Phone: ${formData.phone || 'Not provided'}
-Order Number: ${formData.orderNumber || 'Not provided'}
-
-Message:
-${formData.message}`,
-        category_id: selectedCategory.id,
-        priority: 'medium' as const, // Default priority
+        subject: formData.subject + (formData.orderNumber ? ` - Order ${formData.orderNumber}` : ''),
+        description: formData.message,
+        category_id: null, // Start with null, we'll handle categories later
+        priority: 'medium' as const,
+        status: 'open' as const
       };
 
-      const newTicket = await supportTicketService.create(ticketData);
+      console.log('Submitting ticket data:', ticketData);
+
+      // Try direct Supabase call first (bypass our API service)
+      const { data, error } = await supabase
+        .from('support_tickets')
+        .insert([ticketData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      if (!data) {
+        throw new Error('No data returned from database');
+      }
+
+      console.log('Ticket created successfully:', data);
 
       // Handle file upload if present
       if (file) {
         try {
-          await supportTicketAttachmentService.uploadAttachment(newTicket.id, file, customerId || 'anonymous');
+          await supportTicketAttachmentService.uploadAttachment(data.id, file, customerId || 'anonymous');
         } catch (uploadError) {
-          console.error('Error uploading file:', uploadError);
-          // Don't fail the ticket creation for file upload errors
-          setSubmitError('Ticket created successfully, but there was an error uploading the attachment.');
+          console.error('File upload error:', uploadError);
+          setSubmitError('Ticket created successfully, but file upload failed.');
+          return;
         }
       }
 
       setSubmitSuccess(true);
+
       // Reset form
       setFormData({
         firstName: '',
@@ -242,8 +254,9 @@ ${formData.message}`,
       setFile(null);
 
     } catch (error) {
-      console.error('Error submitting ticket:', error);
-      setSubmitError(error instanceof Error ? error.message : 'Failed to submit support ticket. Please try again.');
+      console.error('Submit error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setSubmitError(`Failed to submit ticket: ${errorMessage}`);
     } finally {
       setLoading(false);
     }

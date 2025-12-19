@@ -5,11 +5,12 @@ import { Trash2, AlertTriangle, Eye, MessageSquare, UserX } from 'lucide-react';
 interface Customer {
   user_id: string;
   email: string;
+  customer_name?: string;
   user_created_at: string;
   last_sign_in_at: string | null;
   email_confirmed_at: string | null;
   role: string;
-  role_assigned_at: string;
+  role_assigned_at: string | null;
 }
 
 interface SupportTicket {
@@ -46,10 +47,12 @@ const Customers: React.FC = () => {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
+      console.log('🔍 Fetching customers from support tickets...');
       const customersData = await customerService.getAll();
+      console.log('✅ Customers fetched:', customersData);
       setCustomers(customersData);
     } catch (err) {
-      console.error('Error fetching customers:', err);
+      console.error('❌ Error fetching customers:', err);
       setError('Failed to load customers');
     } finally {
       setLoading(false);
@@ -58,10 +61,13 @@ const Customers: React.FC = () => {
 
   const fetchSupportTickets = async () => {
     try {
+      console.log('🔍 Fetching support tickets...');
       const ticketsData = await supportTicketService.getAll();
-      setSupportTickets(ticketsData);
+      console.log('✅ Support tickets fetched:', ticketsData);
+      setSupportTickets(ticketsData || []);
     } catch (err) {
-      console.error('Error fetching support tickets:', err);
+      console.error('❌ Error fetching support tickets:', err);
+      setSupportTickets([]);
     }
   };
 
@@ -102,14 +108,15 @@ const Customers: React.FC = () => {
   };
 
   const handleDeleteCustomer = async (customerId: string, customerEmail: string) => {
-    if (!window.confirm(`Are you sure you want to delete customer ${customerEmail}? This action cannot be undone and will remove all associated data.`)) {
+    if (!window.confirm(`Are you sure you want to delete all tickets for ${customerEmail}? This action cannot be undone.`)) {
       return;
     }
 
     try {
       await customerService.deleteCustomer(customerId);
-      alert(`Customer ${customerEmail} has been deleted successfully.`);
+      alert(`All tickets for ${customerEmail} have been deleted.`);
       setCustomers(customers.filter(c => c.user_id !== customerId));
+      setSupportTickets(supportTickets.filter(t => t.customer_email !== customerEmail && t.customer_id !== customerId));
       setDeleteConfirm(null);
     } catch (err) {
       console.error('Error deleting customer:', err);
