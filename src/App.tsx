@@ -17,6 +17,9 @@ import Dashboard from "./pages/admin/Dashboard";
 import Inventory from "./pages/admin/Inventory";
 import Customers from "./pages/admin/Customers";
 import Payments from "./pages/admin/Payments";
+import Members from "./pages/admin/Members";
+import Settings from "./pages/admin/Settings";
+import Information from "./pages/admin/Information";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import Tracking from "./pages/Tracking";
@@ -72,6 +75,9 @@ const App: React.FC = () => {
             <Route path="inventory" element={<Inventory />} />
             <Route path="customers" element={<Customers />} />
             <Route path="payments" element={<Payments />} />
+            <Route path="members" element={<Members />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="information" element={<Information />} />
           </Route>
         </Routes>
       </Router>
