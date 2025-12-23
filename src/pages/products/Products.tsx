@@ -83,7 +83,7 @@ const Products: React.FC = () => {
           onClick={() => setSelectedCategory("All")}
           className={`px-6 py-2 text-xs uppercase tracking-wide transition-colors ${
             selectedCategory === "All"
-              ? "bg-black text-white"
+              ? "bg-blue-600 text-white"
               : "bg-white text-black border border-gray-300 hover:bg-gray-50"
           }`}
         >
@@ -95,7 +95,7 @@ const Products: React.FC = () => {
             onClick={() => setSelectedCategory(category)}
             className={`px-6 py-2 text-xs uppercase tracking-wide transition-colors ${
               selectedCategory === category
-                ? "bg-black text-white"
+                ? "bg-blue-600 text-white"
                 : "bg-white text-black border border-gray-300 hover:bg-gray-50"
             }`}
           >

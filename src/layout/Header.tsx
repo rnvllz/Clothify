@@ -1,5 +1,5 @@
 import React, { useContext, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { CartContext } from "../context/CartContext";
 import { Search20Regular, ShoppingBag20Regular, BoxRegular } from "@fluentui/react-icons";
 import logo from "../assets/logo.svg";
@@ -14,6 +14,14 @@ const Header: React.FC<HeaderProps> = ({ isVisible }) => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isActive = (path: string) => {
+    if (path === "/") {
+      return location.pathname === "/";
+    }
+    return location.pathname.startsWith(path);
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,31 +48,51 @@ const Header: React.FC<HeaderProps> = ({ isVisible }) => {
         <nav className="flex items-center space-x-8 flex-1 justify-center">
           <Link 
             to="/" 
-            className="text-gray-800 hover:text-blue-600 transition-colors font-light text-sm uppercase tracking-wide"
+            className={`transition-colors font-light text-sm uppercase tracking-wide ${
+              isActive("/") 
+                ? "text-blue-600" 
+                : "text-gray-800 hover:text-gray-600"
+            }`}
           >
             Home
           </Link>
           <Link 
             to="/men" 
-            className="text-gray-800 hover:text-blue-600 transition-colors font-light text-sm uppercase tracking-wide"
+            className={`transition-colors font-light text-sm uppercase tracking-wide ${
+              isActive("/men") 
+                ? "text-blue-600" 
+                : "text-gray-800 hover:text-gray-600"
+            }`}
           >
             Men
           </Link>
           <Link 
             to="/women" 
-            className="text-gray-800 hover:text-blue-600 transition-colors font-light text-sm uppercase tracking-wide"
+            className={`transition-colors font-light text-sm uppercase tracking-wide ${
+              isActive("/women") 
+                ? "text-blue-600" 
+                : "text-gray-800 hover:text-gray-600"
+            }`}
           >
             Women
           </Link>
           <Link 
             to="/accessories" 
-            className="text-gray-800 hover:text-blue-600 transition-colors font-light text-sm uppercase tracking-wide"
+            className={`transition-colors font-light text-sm uppercase tracking-wide ${
+              isActive("/accessories") 
+                ? "text-blue-600" 
+                : "text-gray-800 hover:text-gray-600"
+            }`}
           >
             Accessories
           </Link>
           <Link 
             to="/products" 
-            className="text-gray-800 hover:text-blue-600 transition-colors font-light text-sm uppercase tracking-wide"
+            className={`transition-colors font-light text-sm uppercase tracking-wide ${
+              isActive("/products") 
+                ? "text-blue-600" 
+                : "text-gray-800 hover:text-gray-600"
+            }`}
           >
             Collection
           </Link>
@@ -76,7 +104,11 @@ const Header: React.FC<HeaderProps> = ({ isVisible }) => {
           {/* Tracking/Parcels Icon */}
           <Link 
             to="/tracking" 
-            className="text-gray-800 hover:text-blue-600 transition-colors relative shrink-0"
+            className={`transition-colors relative shrink-0 ${
+              isActive("/tracking") 
+                ? "text-blue-600" 
+                : "text-gray-800 hover:text-gray-600"
+            }`}
             aria-label="Track Parcels"
           >
             <BoxRegular />
@@ -85,7 +117,11 @@ const Header: React.FC<HeaderProps> = ({ isVisible }) => {
           {/* Cart Icon */}
           <Link 
             to="/cart" 
-            className="text-gray-800 hover:text-blue-600 transition-colors relative shrink-0"
+            className={`transition-colors relative shrink-0 ${
+              isActive("/cart") 
+                ? "text-blue-600" 
+                : "text-gray-800 hover:text-gray-600"
+            }`}
             aria-label="Cart"
           >
             <ShoppingBag20Regular />
