@@ -12,7 +12,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Home, ShoppingCart, Package, Users, LogOut, ClipboardList } from "lucide-react";
+import { Home, ShoppingCart, Package, Users, LogOut, ClipboardList, Settings, Info } from "lucide-react";
 import Logo from "@/assets/logo.svg";
 import { authService } from "../api/api";
 import toast from "react-hot-toast";
@@ -23,6 +23,11 @@ const mainLinks = [
   { name: "Orders", path: "/employee/orders", icon: ClipboardList },
   { name: "Inventory", path: "/employee/inventory", icon: Package },
   { name: "Customers", path: "/employee/customers", icon: Users },
+];
+
+const otherLinks = [
+  { name: "Settings", path: "/employee/settings", icon: Settings },
+  { name: "Information", path: "/employee/information", icon: Info },
 ];
 
 export function EmployeeSidebar() {
@@ -60,6 +65,33 @@ export function EmployeeSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {mainLinks.map((link) => {
+                const Icon = link.icon;
+                const isActive = location.pathname.startsWith(link.path);
+
+                return (
+                  <SidebarMenuItem key={link.name}>
+                    <SidebarMenuButton
+                      asChild
+                      className={isActive ? "bg-blue-50 text-blue-600 border-l-4 border-blue-500 rounded-none" : ""}
+                      tooltip={link.name}
+                    >
+                      <Link to={link.path}>
+                        <Icon className="h-8 w-8" />
+                        <span className="text-sm">{link.name}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Others</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {otherLinks.map((link) => {
                 const Icon = link.icon;
                 const isActive = location.pathname.startsWith(link.path);
 

@@ -3,7 +3,7 @@ import { Info, BookOpen, HelpCircle, Mail, Phone } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-const Information: React.FC = () => {
+const EmployeeInformation: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-6">
@@ -19,7 +19,7 @@ const Information: React.FC = () => {
               <Info className="w-4 h-4 sm:w-5 sm:h-5" />
               System Information
             </CardTitle>
-            <CardDescription className="text-sm">Details about your platform</CardDescription>
+            <CardDescription className="text-sm">Details about your dashboard</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between py-2 border-b">
@@ -41,24 +41,24 @@ const Information: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Documentation */}
+        {/* Employee Resources */}
         <Card>
           <CardHeader className="pb-3 sm:pb-4">
             <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
-              Documentation
+              Quick Resources
             </CardTitle>
-            <CardDescription className="text-sm">Guides and resources</CardDescription>
+            <CardDescription className="text-sm">Helpful guides and documentation</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <a href="#" className="block text-blue-600 hover:underline text-sm font-medium">
-              Admin Guide
+              Employee Quick Start Guide
             </a>
             <a href="#" className="block text-blue-600 hover:underline text-sm font-medium">
-              API Documentation
+              Dashboard Navigation Tips
             </a>
             <a href="#" className="block text-blue-600 hover:underline text-sm font-medium">
-              Troubleshooting Guide
+              Common Tasks & Workflows
             </a>
             <a href="#" className="block text-blue-600 hover:underline text-sm font-medium">
               FAQ - Frequently Asked Questions
@@ -71,13 +71,13 @@ const Information: React.FC = () => {
           <CardHeader className="pb-3 sm:pb-4">
             <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-              Support
+              Need Help?
             </CardTitle>
             <CardDescription className="text-sm">Get in touch with support</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-gray-600">
-              Need assistance? Contact our support team for help.
+              If you have questions or need assistance, contact your admin or the support team.
             </p>
             <div className="space-y-2">
               <div className="flex items-center gap-3">
@@ -93,39 +93,39 @@ const Information: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Admin Features */}
+        {/* Dashboard Overview */}
         <Card>
           <CardHeader className="pb-3 sm:pb-4">
-            <CardTitle className="text-base sm:text-lg">Admin Features</CardTitle>
-            <CardDescription className="text-sm">Available admin tools</CardDescription>
+            <CardTitle className="text-base sm:text-lg">Your Dashboard</CardTitle>
+            <CardDescription className="text-sm">Overview of available features</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-start gap-3">
               <div className="shrink-0 w-4 h-4 rounded-full bg-blue-600 mt-1"></div>
               <div>
                 <p className="font-medium text-sm">Dashboard</p>
-                <p className="text-xs text-gray-600">View analytics and key metrics</p>
+                <p className="text-xs text-gray-600">View key metrics and statistics</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <div className="shrink-0 w-4 h-4 rounded-full bg-blue-600 mt-1"></div>
               <div>
-                <p className="font-medium text-sm">Orders Management</p>
-                <p className="text-xs text-gray-600">Track and manage all orders</p>
+                <p className="font-medium text-sm">Orders</p>
+                <p className="text-xs text-gray-600">Track and manage customer orders</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <div className="shrink-0 w-4 h-4 rounded-full bg-blue-600 mt-1"></div>
               <div>
-                <p className="font-medium text-sm">Inventory Control</p>
-                <p className="text-xs text-gray-600">Manage stock and suppliers</p>
+                <p className="font-medium text-sm">Products</p>
+                <p className="text-xs text-gray-600">Browse and manage inventory</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <div className="shrink-0 w-4 h-4 rounded-full bg-blue-600 mt-1"></div>
               <div>
-                <p className="font-medium text-sm">Payment Tracking</p>
-                <p className="text-xs text-gray-600">Monitor transactions and revenue</p>
+                <p className="font-medium text-sm">Customers</p>
+                <p className="text-xs text-gray-600">View customer information</p>
               </div>
             </div>
           </CardContent>
@@ -135,4 +135,4 @@ const Information: React.FC = () => {
   );
 };
 
-export default Information;
+export default EmployeeInformation;
