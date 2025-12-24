@@ -1,9 +1,93 @@
-import React from 'react';
-import { Package, TrendingUp, AlertTriangle } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useEffect, useState } from 'react';
+import { Package, TrendingUp, AlertTriangle, AlertCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { inventoryService, lowStockAlertService } from '../../api/api';
+import type { ProductInventory, LowStockAlert } from '../../types/database';
+import toast from 'react-hot-toast';
 
 const Inventory: React.FC = () => {
+  const [inventoryItems, setInventoryItems] = useState<ProductInventory[]>([]);
+  const [lowStockAlerts, setLowStockAlerts] = useState<LowStockAlert[]>([]);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [lowStockCount, setLowStockCount] = useState(0);
+  const [outOfStockCount, setOutOfStockCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchInventoryData();
+  }, []);
+
+  const fetchInventoryData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch all inventory items
+      const items = await inventoryService.getAll();
+      setInventoryItems(items);
+      setTotalProducts(items.length);
+
+      // Count low stock items
+      const lowStockItems = items.filter(item => item.stock_quantity <= item.low_stock_threshold && item.stock_quantity > 0);
+      setLowStockCount(lowStockItems.length);
+
+      // Count out of stock items
+      const outOfStock = items.filter(item => item.stock_quantity === 0);
+      setOutOfStockCount(outOfStock.length);
+
+      // Fetch low stock alerts
+      const alerts = await lowStockAlertService.getUnresolved();
+      setLowStockAlerts(alerts);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch inventory data';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      console.error('Error fetching inventory data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResolveAlert = async (alertId: string) => {
+    try {
+      await lowStockAlertService.resolve(alertId);
+      setLowStockAlerts(lowStockAlerts.filter(a => a.id !== alertId));
+      toast.success('Alert resolved');
+    } catch (err) {
+      toast.error('Failed to resolve alert');
+      console.error('Error resolving alert:', err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Package className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading inventory data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex items-center space-x-4 p-6">
+            <AlertCircle className="h-10 w-10 text-red-600" />
+            <div>
+              <h3 className="font-medium text-gray-900">Error Loading Inventory</h3>
+              <p className="text-sm text-gray-600">{error}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-6">
@@ -17,8 +101,8 @@ const Inventory: React.FC = () => {
             <CardTitle className="text-sm sm:text-base">Total Products</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl sm:text-3xl font-bold">247</div>
-            <p className="text-xs sm:text-sm text-muted-foreground">Active products</p>
+            <div className="text-2xl sm:text-3xl font-bold">{totalProducts}</div>
+            <p className="text-xs sm:text-sm text-muted-foreground">Active inventory items</p>
           </CardContent>
         </Card>
 
@@ -27,7 +111,7 @@ const Inventory: React.FC = () => {
             <CardTitle className="text-sm sm:text-base">Low Stock Items</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl sm:text-3xl font-bold text-orange-600">12</div>
+            <div className="text-2xl sm:text-3xl font-bold text-orange-600">{lowStockCount}</div>
             <p className="text-xs sm:text-sm text-muted-foreground">Need restocking</p>
           </CardContent>
         </Card>
@@ -37,11 +121,44 @@ const Inventory: React.FC = () => {
             <CardTitle className="text-sm sm:text-base">Out of Stock</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl sm:text-3xl font-bold text-red-600">3</div>
+            <div className="text-2xl sm:text-3xl font-bold text-red-600">{outOfStockCount}</div>
             <p className="text-xs sm:text-sm text-muted-foreground">Urgent attention needed</p>
           </CardContent>
         </Card>
       </div>
+
+      {lowStockAlerts.length > 0 && (
+        <Card className="mb-6 border-orange-200 bg-orange-50">
+          <CardHeader className="pb-3 sm:pb-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg text-orange-900">
+              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
+              Low Stock Alerts ({lowStockAlerts.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6">
+            <div className="space-y-3">
+              {lowStockAlerts.map((alert) => (
+                <div key={alert.id} className="flex items-center justify-between p-3 bg-white rounded border border-orange-200">
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {alert.alert_type === 'out_of_stock' ? 'Out of Stock' : 'Low Stock Alert'}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Current stock: {alert.current_stock} | Threshold: {alert.threshold}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleResolveAlert(alert.id)}
+                    className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                  >
+                    Mark Resolved
+                  </button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="pb-3 sm:pb-4">
@@ -49,96 +166,73 @@ const Inventory: React.FC = () => {
             <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
             Product Inventory
           </CardTitle>
-          <CardDescription className="text-sm">Monitor stock levels and manage inventory</CardDescription>
         </CardHeader>
         <CardContent className="p-4 sm:p-6">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left p-3 text-sm font-medium">Product</th>
+                  <th className="text-left p-3 text-sm font-medium">Product ID</th>
                   <th className="text-left p-3 text-sm font-medium">SKU</th>
+                  <th className="text-left p-3 text-sm font-medium">Size</th>
+                  <th className="text-left p-3 text-sm font-medium">Color</th>
                   <th className="text-left p-3 text-sm font-medium">Stock</th>
+                  <th className="text-left p-3 text-sm font-medium">Reserved</th>
+                  <th className="text-left p-3 text-sm font-medium">Location</th>
                   <th className="text-left p-3 text-sm font-medium">Status</th>
-                  <th className="text-left p-3 text-sm font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b hover:bg-muted/50">
-                  <td className="p-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                        <Package className="w-5 h-5 text-gray-600" />
-                      </div>
-                      <span className="font-medium">Classic T-Shirt</span>
-                    </div>
-                  </td>
-                  <td className="p-3 text-sm text-muted-foreground">TS-001</td>
-                  <td className="p-3">
-                    <span className="font-medium">100</span>
-                  </td>
-                  <td className="p-3">
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-100">
-                      In Stock
-                    </Badge>
-                  </td>
-                  <td className="p-3">
-                    <button className="text-sm text-blue-600 hover:text-blue-800 hover:underline">
-                      Update Stock
-                    </button>
-                  </td>
-                </tr>
-                <tr className="border-b hover:bg-muted/50">
-                  <td className="p-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                        <Package className="w-5 h-5 text-gray-600" />
-                      </div>
-                      <span className="font-medium">Premium Jeans</span>
-                    </div>
-                  </td>
-                  <td className="p-3 text-sm text-muted-foreground">JN-001</td>
-                  <td className="p-3">
-                    <span className="font-medium text-orange-600">5</span>
-                  </td>
-                  <td className="p-3">
-                    <Badge variant="secondary" className="bg-orange-100 text-orange-800 hover:bg-orange-100">
-                      Low Stock
-                    </Badge>
-                  </td>
-                  <td className="p-3">
-                    <button className="text-sm text-blue-600 hover:text-blue-800 hover:underline">
-                      Restock
-                    </button>
-                  </td>
-                </tr>
-                <tr className="border-b hover:bg-muted/50">
-                  <td className="p-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                        <Package className="w-5 h-5 text-gray-600" />
-                      </div>
-                      <span className="font-medium">Summer Dress</span>
-                    </div>
-                  </td>
-                  <td className="p-3 text-sm text-muted-foreground">DR-001</td>
-                  <td className="p-3">
-                    <span className="font-medium text-red-600">0</span>
-                  </td>
-                  <td className="p-3">
-                    <Badge variant="destructive">
-                      Out of Stock
-                    </Badge>
-                  </td>
-                  <td className="p-3">
-                    <button className="text-sm text-blue-600 hover:text-blue-800 hover:underline">
-                      Order More
-                    </button>
-                  </td>
-                </tr>
+                {inventoryItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-6 text-center text-gray-500">
+                      No inventory items found
+                    </td>
+                  </tr>
+                ) : (
+                  inventoryItems.slice(0, 10).map((item) => (
+                    <tr key={item.id} className="border-b hover:bg-muted/50">
+                      <td className="p-3">
+                        <span className="font-mono text-sm">{item.product_id.slice(-6)}</span>
+                      </td>
+                      <td className="p-3">
+                        <span className="text-sm">{item.sku || '-'}</span>
+                      </td>
+                      <td className="p-3">
+                        <span className="text-sm">{item.size || '-'}</span>
+                      </td>
+                      <td className="p-3">
+                        <span className="text-sm">{item.color || '-'}</span>
+                      </td>
+                      <td className="p-3">
+                        <span className="font-medium">{item.stock_quantity}</span>
+                      </td>
+                      <td className="p-3">
+                        <span className="text-sm text-gray-600">{item.reserved_quantity}</span>
+                      </td>
+                      <td className="p-3">
+                        <span className="text-sm">{item.location || 'Warehouse A'}</span>
+                      </td>
+                      <td className="p-3">
+                        {item.stock_quantity === 0 ? (
+                          <Badge variant="destructive">Out of Stock</Badge>
+                        ) : item.stock_quantity <= item.low_stock_threshold ? (
+                          <Badge variant="secondary" className="bg-orange-100 text-orange-800">Low Stock</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="bg-green-100 text-green-800">In Stock</Badge>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
+          {inventoryItems.length > 10 && (
+            <div className="mt-4 text-center text-sm text-gray-600">
+              Showing 10 of {inventoryItems.length} items
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

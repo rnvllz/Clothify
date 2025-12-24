@@ -12,7 +12,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Home, ShoppingCart, Package, Users, CreditCard, LogOut, Settings, Info, Users2 } from "lucide-react";
+import { Home, ShoppingCart, Package, Users, CreditCard, LogOut, Settings, Info, Users2, ClipboardList } from "lucide-react";
 import { authService } from "../api/api";
 import toast from "react-hot-toast";
 import Logo from "@/assets/logo.svg";
@@ -20,6 +20,7 @@ import Logo from "@/assets/logo.svg";
 const mainLinks = [
   { name: "Dashboard", path: "/admin/dashboard", icon: Home },
   { name: "Products", path: "/admin/products", icon: ShoppingCart },
+  { name: "Orders", path: "/admin/orders", icon: ClipboardList },
   { name: "Inventory", path: "/admin/inventory", icon: Package },
   { name: "Customers", path: "/admin/customers", icon: Users },
   { name: "Payments", path: "/admin/payments", icon: CreditCard },

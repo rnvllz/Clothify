@@ -1,9 +1,115 @@
-import React from 'react';
-import { CreditCard, DollarSign, TrendingUp, Calendar } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useEffect, useState } from 'react';
+import { CreditCard, DollarSign, TrendingUp, Calendar, AlertCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { paymentService } from '../../api/api';
+import type { PaymentTransaction } from '../../types/database';
+import toast from 'react-hot-toast';
 
 const Payments: React.FC = () => {
+  const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [monthRevenue, setMonthRevenue] = useState(0);
+  const [pendingAmount, setPendingAmount] = useState(0);
+  const [failedAmount, setFailedAmount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchPaymentData();
+  }, []);
+
+  const fetchPaymentData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch all transactions
+      const allTransactions = await paymentService.getAll();
+      setTransactions(allTransactions);
+
+      // Calculate revenue metrics
+      const total = await paymentService.getTotalRevenue();
+      setTotalRevenue(total);
+
+      const month = await paymentService.getMonthRevenue();
+      setMonthRevenue(month);
+
+      // Calculate pending and failed amounts
+      const pending = allTransactions
+        .filter(t => t.status === 'pending')
+        .reduce((sum, t) => sum + t.amount, 0);
+      setPendingAmount(pending);
+
+      const failed = allTransactions
+        .filter(t => t.status === 'failed')
+        .reduce((sum, t) => sum + t.amount, 0);
+      setFailedAmount(failed);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch payment data';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      console.error('Error fetching payment data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-orange-100 text-orange-800';
+      case 'processing':
+        return 'bg-blue-100 text-blue-800';
+      case 'failed':
+        return 'bg-red-100 text-red-800';
+      case 'refunded':
+      case 'partially_refunded':
+        return 'bg-purple-100 text-purple-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <CreditCard className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading payment data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex items-center space-x-4 p-6">
+            <AlertCircle className="h-10 w-10 text-red-600" />
+            <div>
+              <h3 className="font-medium text-gray-900">Error Loading Payments</h3>
+              <p className="text-sm text-gray-600">{error}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-6">
@@ -17,10 +123,10 @@ const Payments: React.FC = () => {
             <CardTitle className="text-sm sm:text-base">Total Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl sm:text-3xl font-bold">$24,580</div>
+            <div className="text-2xl sm:text-3xl font-bold">${totalRevenue.toFixed(2)}</div>
             <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1">
               <TrendingUp className="w-3 h-3" />
-              +12% from last month
+              All time revenue
             </p>
           </CardContent>
         </Card>
@@ -30,7 +136,7 @@ const Payments: React.FC = () => {
             <CardTitle className="text-sm sm:text-base">This Month</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl sm:text-3xl font-bold">$8,450</div>
+            <div className="text-2xl sm:text-3xl font-bold">${monthRevenue.toFixed(2)}</div>
             <p className="text-xs sm:text-sm text-muted-foreground">Current month revenue</p>
           </CardContent>
         </Card>
@@ -40,7 +146,7 @@ const Payments: React.FC = () => {
             <CardTitle className="text-sm sm:text-base">Pending</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl sm:text-3xl font-bold text-orange-600">$1,230</div>
+            <div className="text-2xl sm:text-3xl font-bold text-orange-600">${pendingAmount.toFixed(2)}</div>
             <p className="text-xs sm:text-sm text-muted-foreground">Awaiting processing</p>
           </CardContent>
         </Card>
@@ -50,7 +156,7 @@ const Payments: React.FC = () => {
             <CardTitle className="text-sm sm:text-base">Failed</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl sm:text-3xl font-bold text-red-600">$89</div>
+            <div className="text-2xl sm:text-3xl font-bold text-red-600">${failedAmount.toFixed(2)}</div>
             <p className="text-xs sm:text-sm text-muted-foreground">Payment failures</p>
           </CardContent>
         </Card>
@@ -62,7 +168,6 @@ const Payments: React.FC = () => {
             <DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />
             Transaction History
           </CardTitle>
-          <CardDescription className="text-sm">View and manage all payment transactions</CardDescription>
         </CardHeader>
         <CardContent className="p-4 sm:p-6">
           <div className="overflow-x-auto">
@@ -73,92 +178,46 @@ const Payments: React.FC = () => {
                   <th className="text-left p-3 text-sm font-medium">Date</th>
                   <th className="text-left p-3 text-sm font-medium">Customer</th>
                   <th className="text-left p-3 text-sm font-medium">Amount</th>
+                  <th className="text-left p-3 text-sm font-medium">Method</th>
                   <th className="text-left p-3 text-sm font-medium">Status</th>
-                  <th className="text-left p-3 text-sm font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b hover:bg-muted/50">
-                  <td className="p-3">
-                    <span className="font-mono text-sm">txn_12345</span>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm">2024-12-20</span>
-                    </div>
-                  </td>
-                  <td className="p-3">
-                    <span className="font-medium">john.doe@email.com</span>
-                  </td>
-                  <td className="p-3">
-                    <span className="font-medium">$45.00</span>
-                  </td>
-                  <td className="p-3">
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-100">
-                      Completed
-                    </Badge>
-                  </td>
-                  <td className="p-3">
-                    <button className="text-sm text-blue-600 hover:text-blue-800 hover:underline">
-                      View Details
-                    </button>
-                  </td>
-                </tr>
-                <tr className="border-b hover:bg-muted/50">
-                  <td className="p-3">
-                    <span className="font-mono text-sm">txn_12346</span>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm">2024-12-19</span>
-                    </div>
-                  </td>
-                  <td className="p-3">
-                    <span className="font-medium">jane.smith@email.com</span>
-                  </td>
-                  <td className="p-3">
-                    <span className="font-medium">$89.99</span>
-                  </td>
-                  <td className="p-3">
-                    <Badge variant="secondary" className="bg-orange-100 text-orange-800 hover:bg-orange-100">
-                      Pending
-                    </Badge>
-                  </td>
-                  <td className="p-3">
-                    <button className="text-sm text-blue-600 hover:text-blue-800 hover:underline">
-                      Process
-                    </button>
-                  </td>
-                </tr>
-                <tr className="border-b hover:bg-muted/50">
-                  <td className="p-3">
-                    <span className="font-mono text-sm">txn_12347</span>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm">2024-12-18</span>
-                    </div>
-                  </td>
-                  <td className="p-3">
-                    <span className="font-medium">mike.johnson@email.com</span>
-                  </td>
-                  <td className="p-3">
-                    <span className="font-medium">$67.50</span>
-                  </td>
-                  <td className="p-3">
-                    <Badge variant="destructive">
-                      Failed
-                    </Badge>
-                  </td>
-                  <td className="p-3">
-                    <button className="text-sm text-blue-600 hover:text-blue-800 hover:underline">
-                      Retry
-                    </button>
-                  </td>
-                </tr>
+                {transactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-6 text-center text-gray-500">
+                      No transactions found
+                    </td>
+                  </tr>
+                ) : (
+                  transactions.map((transaction) => (
+                    <tr key={transaction.id} className="border-b hover:bg-muted/50">
+                      <td className="p-3">
+                        <span className="font-mono text-sm">{transaction.id.slice(-8)}</span>
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm">{formatDate(transaction.created_at)}</span>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <span className="font-medium text-sm">{transaction.customer_email}</span>
+                      </td>
+                      <td className="p-3">
+                        <span className="font-medium">${transaction.amount.toFixed(2)}</span>
+                      </td>
+                      <td className="p-3">
+                        <span className="text-sm text-gray-600 capitalize">{transaction.payment_method}</span>
+                      </td>
+                      <td className="p-3">
+                        <Badge variant="secondary" className={getStatusColor(transaction.status)}>
+                          {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -167,5 +226,4 @@ const Payments: React.FC = () => {
     </div>
   );
 };
-
 export default Payments;

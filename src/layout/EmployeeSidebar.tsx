@@ -12,7 +12,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Home, ShoppingCart, Package, Users, LogOut } from "lucide-react";
+import { Home, ShoppingCart, Package, Users, LogOut, ClipboardList } from "lucide-react";
 import Logo from "@/assets/logo.svg";
 import { authService } from "../api/api";
 import toast from "react-hot-toast";
@@ -20,6 +20,7 @@ import toast from "react-hot-toast";
 const mainLinks = [
   { name: "Dashboard", path: "/employee/dashboard", icon: Home },
   { name: "Products", path: "/employee/products", icon: ShoppingCart },
+  { name: "Orders", path: "/employee/orders", icon: ClipboardList },
   { name: "Inventory", path: "/employee/inventory", icon: Package },
   { name: "Customers", path: "/employee/customers", icon: Users },
 ];

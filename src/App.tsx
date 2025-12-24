@@ -38,6 +38,8 @@ import EmployeeDashboard from "./pages/employees/EmployeeDashboard";
 import EmployeeInventory from "./pages/employees/EmployeeInventory";
 import EmployeeProducts from "./pages/employees/EmployeeProducts";
 import EmployeeCustomers from "./pages/employees/EmployeeCustomers";
+import Orders from "./pages/admin/Orders";
+import EmployeeOrders from "./pages/employees/EmployeeOrders";
 
 
 const App: React.FC = () => {
@@ -91,6 +93,11 @@ const App: React.FC = () => {
                 <EmployeeProducts />
               </ProtectedRoute>
             } />
+            <Route path="orders" element={
+              <ProtectedRoute requiredRole="employee">
+                <EmployeeOrders />
+              </ProtectedRoute>
+            } />
             <Route path="inventory" element={
               <ProtectedRoute requiredRole="employee">
                 <EmployeeInventory />
@@ -118,6 +125,11 @@ const App: React.FC = () => {
             <Route path="products" element={
               <ProtectedRoute requiredRole="admin">
                 <Admin />
+              </ProtectedRoute>
+            } />
+            <Route path="orders" element={
+              <ProtectedRoute requiredRole="admin">
+                <Orders />
               </ProtectedRoute>
             } />
             <Route path="inventory" element={

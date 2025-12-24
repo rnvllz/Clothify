@@ -1,5 +1,5 @@
 import { createClient, } from '@supabase/supabase-js';
-import type { Product, ProductInsert, ProductUpdate, Order, OrderInsert, Category, Gender, SupportTicket, SupportTicketInsert, SupportTicketUpdate, TicketResponse, TicketResponseInsert, SupportTicketCategory } from '../types/database';
+import type { Product, ProductInsert, ProductUpdate, Order, OrderInsert, Category, Gender, SupportTicket, SupportTicketInsert, SupportTicketUpdate, TicketResponse, TicketResponseInsert, SupportTicketCategory, ProductInventory, Supplier, LowStockAlert, PaymentTransaction, PaymentRefund } from '../types/database';
 
 // Initialize Supabase client
 
@@ -197,6 +197,351 @@ export const orderService = {
     if (!data) throw new Error('Failed to create order');
 
     return data;
+  },
+
+  async getAll(): Promise<Order[]> {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getById(orderId: string): Promise<Order> {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .single();
+    
+    if (error) throw error;
+    if (!data) throw new Error('Order not found');
+    return data;
+  },
+
+  async getByCustomerEmail(email: string): Promise<Order[]> {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('customer_email', email)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getTotalRevenue(): Promise<number> {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('total');
+    
+    if (error) throw error;
+    if (!data) return 0;
+    return data.reduce((sum, order) => sum + (order.total || 0), 0);
+  },
+
+  async getMonthRevenue(): Promise<number> {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    
+    const { data, error } = await supabase
+      .from('orders')
+      .select('total')
+      .gte('created_at', monthStart);
+    
+    if (error) throw error;
+    if (!data) return 0;
+    return data.reduce((sum, order) => sum + (order.total || 0), 0);
+  },
+
+  async getOrderCount(): Promise<number> {
+    const { data, error, count } = await supabase
+      .from('orders')
+      .select('id', { count: 'exact' });
+    
+    if (error) throw error;
+    return count || 0;
+  },
+
+  async getRecentOrders(limit: number = 10): Promise<Order[]> {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    
+    if (error) throw error;
+    return data || [];
+  }
+};
+
+// Inventory Service
+export const inventoryService = {
+  // Get all inventory items
+  async getAll(): Promise<ProductInventory[]> {
+    const { data, error } = await supabase
+      .from('product_inventory')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get inventory by product ID
+  async getByProductId(productId: string): Promise<ProductInventory[]> {
+    const { data, error } = await supabase
+      .from('product_inventory')
+      .select('*')
+      .eq('product_id', productId)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get low stock items
+  async getLowStockItems(): Promise<ProductInventory[]> {
+    const { data, error } = await supabase
+      .from('product_inventory')
+      .select('*')
+      .lte('stock_quantity', 'low_stock_threshold')
+      .order('stock_quantity', { ascending: true });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get out of stock items
+  async getOutOfStock(): Promise<ProductInventory[]> {
+    const { data, error } = await supabase
+      .from('product_inventory')
+      .select('*')
+      .eq('stock_quantity', 0)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Update inventory stock quantity
+  async updateStock(inventoryId: string, newQuantity: number): Promise<ProductInventory> {
+    const { data, error } = await supabase
+      .from('product_inventory')
+      .update({ stock_quantity: newQuantity })
+      .eq('id', inventoryId)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    if (!data) throw new Error('Failed to update inventory');
+    return data;
+  },
+
+  // Create inventory record
+  async create(inventoryData: Omit<ProductInventory, 'id' | 'created_at' | 'updated_at'>): Promise<ProductInventory> {
+    const { data, error } = await supabase
+      .from('product_inventory')
+      .insert([inventoryData])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    if (!data) throw new Error('Failed to create inventory');
+    return data;
+  }
+};
+
+// Supplier Service
+export const supplierService = {
+  // Get all suppliers
+  async getAll(): Promise<Supplier[]> {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get active suppliers
+  async getActive(): Promise<Supplier[]> {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select('*')
+      .eq('is_active', true)
+      .order('name', { ascending: true });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Create supplier
+  async create(supplierData: Omit<Supplier, 'id' | 'created_at' | 'updated_at'>): Promise<Supplier> {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .insert([supplierData])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    if (!data) throw new Error('Failed to create supplier');
+    return data;
+  }
+};
+
+// Low Stock Alerts Service
+export const lowStockAlertService = {
+  // Get all unresolved alerts
+  async getUnresolved(): Promise<LowStockAlert[]> {
+    const { data, error } = await supabase
+      .from('low_stock_alerts')
+      .select('*')
+      .eq('is_resolved', false)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get all alerts
+  async getAll(): Promise<LowStockAlert[]> {
+    const { data, error } = await supabase
+      .from('low_stock_alerts')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Mark alert as resolved
+  async resolve(alertId: string, userId?: string): Promise<LowStockAlert> {
+    const { data, error } = await supabase
+      .from('low_stock_alerts')
+      .update({ is_resolved: true, resolved_at: new Date().toISOString(), resolved_by: userId })
+      .eq('id', alertId)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    if (!data) throw new Error('Failed to resolve alert');
+    return data;
+  }
+};
+
+// Payment Service
+export const paymentService = {
+  // Get all payment transactions
+  async getAll(): Promise<PaymentTransaction[]> {
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get transactions by status
+  async getByStatus(status: string): Promise<PaymentTransaction[]> {
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select('*')
+      .eq('status', status)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get completed transactions (successful payments)
+  async getCompleted(): Promise<PaymentTransaction[]> {
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select('*')
+      .eq('status', 'completed')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get pending transactions
+  async getPending(): Promise<PaymentTransaction[]> {
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get failed transactions
+  async getFailed(): Promise<PaymentTransaction[]> {
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select('*')
+      .eq('status', 'failed')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get refunds
+  async getRefunds(): Promise<PaymentRefund[]> {
+    const { data, error } = await supabase
+      .from('payment_refunds')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Create payment transaction
+  async create(paymentData: Omit<PaymentTransaction, 'id' | 'created_at' | 'updated_at'>): Promise<PaymentTransaction> {
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .insert([paymentData])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    if (!data) throw new Error('Failed to create payment transaction');
+    return data;
+  },
+
+  // Get total revenue
+  async getTotalRevenue(): Promise<number> {
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select('amount')
+      .eq('status', 'completed');
+    
+    if (error) throw error;
+    return (data || []).reduce((total, transaction) => total + (transaction.amount || 0), 0);
+  },
+
+  // Get this month's revenue
+  async getMonthRevenue(): Promise<number> {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select('amount')
+      .eq('status', 'completed')
+      .gte('created_at', monthStart);
+    
+    if (error) throw error;
+    return (data || []).reduce((total, transaction) => total + (transaction.amount || 0), 0);
   }
 };
 
