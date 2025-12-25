@@ -50,11 +50,11 @@ const Carousel: React.FC<CarouselProps> = ({
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
       >
         {images.map((image, index) => (
-          <div key={index} className="w-full flex-shrink-0">
+          <div key={index} className="w-full shrink-0">
             <img
               src={image}
               alt={`Banner ${index + 1}`}
-              className="w-full h-[400px] lg:h-[700px] object-cover rounded-2xl"
+              className="w-full h-100 lg:h-175 object-cover rounded-2xl"
             />
           </div>
         ))}

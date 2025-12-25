@@ -51,17 +51,17 @@ const Information: React.FC = () => {
             <CardDescription className="text-sm">Guides and resources</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <a href="#" className="block text-blue-600 hover:underline text-sm font-medium">
-              Admin Guide
+            <a href="/admin/guide" className="block text-blue-600 hover:underline text-sm font-medium">
+              Admin Guide - Complete Manual
+            </a>
+            <a href="/support/faq" className="block text-blue-600 hover:underline text-sm font-medium">
+              FAQ - Frequently Asked Questions
             </a>
             <a href="#" className="block text-blue-600 hover:underline text-sm font-medium">
               API Documentation
             </a>
             <a href="#" className="block text-blue-600 hover:underline text-sm font-medium">
               Troubleshooting Guide
-            </a>
-            <a href="#" className="block text-blue-600 hover:underline text-sm font-medium">
-              FAQ - Frequently Asked Questions
             </a>
           </CardContent>
         </Card>

@@ -257,10 +257,10 @@ export const orderService = {
   },
 
   async getOrderCount(): Promise<number> {
-    const { data, error, count } = await supabase
+    const { error, count } = await supabase
       .from('orders')
       .select('id', { count: 'exact' });
-    
+
     if (error) throw error;
     return count || 0;
   },
@@ -351,6 +351,20 @@ export const inventoryService = {
     if (error) throw error;
     if (!data) throw new Error('Failed to create inventory');
     return data;
+  },
+
+  // Get inventory with product information
+  async getInventoryWithProducts(): Promise<(ProductInventory & { products: Product })[]> {
+    const { data, error } = await supabase
+      .from('product_inventory')
+      .select(`
+        *,
+        products (*)
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
   }
 };
 
@@ -643,7 +657,9 @@ export const supportTicketService = {
   // Get all support tickets (admin view)
   async getAll(): Promise<SupportTicket[]> {
     console.log('📨 API: Fetching all support tickets...');
-    const { data, error } = await supabase
+
+    // First get all tickets
+    const { data: tickets, error: ticketsError } = await supabase
       .from('support_tickets')
       .select(`
         *,
@@ -651,21 +667,49 @@ export const supportTicketService = {
       `)
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('❌ API Error fetching tickets:', error);
-      throw error;
+    if (ticketsError) {
+      console.error('❌ API Error fetching tickets:', ticketsError);
+      throw ticketsError;
     }
 
-    console.log('✅ API: Raw tickets from DB:', data);
-    
+    if (!tickets || tickets.length === 0) {
+      console.log('✅ API: No tickets found');
+      return [];
+    }
+
+    // Get unique assigned user IDs
+    const assignedUserIds = [...new Set(tickets.map(t => t.assigned_to).filter(id => id))];
+
+    // Fetch user emails if we have assigned users
+    let userEmails: { [key: string]: string } = {};
+    if (assignedUserIds.length > 0) {
+      // Query user_details view instead of admin API
+      const { data: users, error: usersError } = await supabase
+        .from('user_details')
+        .select('user_id, email')
+        .in('user_id', assignedUserIds);
+
+      if (!usersError && users) {
+        // Create email map from the view data
+        users.forEach((user) => {
+          userEmails[user.user_id] = user.email || 'Unknown';
+        });
+      } else {
+        console.warn('⚠️ API: Could not fetch user emails from user_details view:', usersError);
+      }
+    }
+
+    console.log('✅ API: Raw tickets from DB:', tickets);
+    console.log('✅ API: User emails:', userEmails);
+
     // Transform the data to match our interface
-    const transformedTickets = (data || []).map(ticket => ({
+    const transformedTickets = tickets.map(ticket => ({
       ...ticket,
       customer_email: ticket.customer_email,
-      assigned_to_email: ticket.assigned_to_email,
+      assigned_to_email: ticket.assigned_to ? userEmails[ticket.assigned_to] || null : null,
       category_name: ticket.support_ticket_categories?.name
     }));
-    
+
     console.log('✅ API: Transformed tickets:', transformedTickets);
     return transformedTickets;
   },
@@ -730,10 +774,20 @@ export const supportTicketService = {
 
     if (error) throw error;
 
+    // Get the current user's email from user_details view
+    const { data: userInfo, error: userError } = await supabase
+      .from('user_details')
+      .select('email')
+      .eq('user_id', user.id)
+      .single();
+
+    const assignedEmail = (!userError && userInfo) ? userInfo.email : null;
+
     // Transform the data to match our interface
     return (data || []).map(ticket => ({
       ...ticket,
-      category_name: ticket.support_ticket_categories?.name
+      category_name: ticket.support_ticket_categories?.name,
+      assigned_to_email: assignedEmail
     }));
   },
 
@@ -751,10 +805,22 @@ export const supportTicketService = {
     if (error) throw error;
     if (!data) throw new Error('Failed to create support ticket');
 
+    // Get the assigned user's email if assigned_to exists
+    let assignedEmail = null;
+    if (data.assigned_to) {
+      const { data: userInfo, error: userError } = await supabase
+        .from('user_details')
+        .select('email')
+        .eq('user_id', data.assigned_to)
+        .single();
+
+      assignedEmail = (!userError && userInfo) ? userInfo.email : null;
+    }
+
     return {
       ...data,
       customer_email: data.customer_email,
-      assigned_to_email: data.assigned_to_email,
+      assigned_to_email: assignedEmail,
       category_name: data.support_ticket_categories?.name
     };
   },
@@ -774,40 +840,187 @@ export const supportTicketService = {
     if (error) throw error;
     if (!data) throw new Error('Failed to update support ticket');
 
+    // Get the assigned user's email if assigned_to exists
+    let assignedEmail = null;
+    if (data.assigned_to) {
+      const { data: userInfo, error: userError } = await supabase
+        .from('user_details')
+        .select('email')
+        .eq('user_id', data.assigned_to)
+        .single();
+
+      assignedEmail = (!userError && userInfo) ? userInfo.email : null;
+    }
+
     return {
       ...data,
       customer_email: data.customer_email,
-      assigned_to_email: data.assigned_to_email,
+      assigned_to_email: assignedEmail,
       category_name: data.support_ticket_categories?.name
     };
   },
 
-  // Delete a support ticket
-  async delete(id: number): Promise<void> {
-    const { error } = await supabase
+  // Assign ticket to user
+  async assignTicket(ticketId: number, assignedTo: string): Promise<SupportTicket> {
+    console.log('👤 API: Assigning ticket', ticketId, 'to user', assignedTo);
+
+    const { data, error } = await supabase
       .from('support_tickets')
-      .delete()
-      .eq('id', id);
+      .update({
+        assigned_to: assignedTo,
+        status: 'in-progress',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', ticketId)
+      .select(`
+        *,
+        support_ticket_categories(name)
+      `)
+      .single();
 
     if (error) throw error;
+    if (!data) throw new Error('Failed to assign ticket');
+
+    // Get the assigned user's email
+    let assignedEmail = null;
+    if (data.assigned_to) {
+      const { data: userInfo, error: userError } = await supabase
+        .from('user_details')
+        .select('email')
+        .eq('user_id', data.assigned_to)
+        .single();
+
+      assignedEmail = (!userError && userInfo) ? userInfo.email : null;
+    }
+
+    return {
+      ...data,
+      customer_email: data.customer_email,
+      assigned_to_email: assignedEmail,
+      category_name: data.support_ticket_categories?.name
+    };
+  },
+
+  // Mark ticket as resolved
+  async resolveTicket(ticketId: number): Promise<SupportTicket> {
+    console.log('✅ API: Resolving ticket', ticketId);
+
+    const { data, error } = await supabase
+      .from('support_tickets')
+      .update({
+        status: 'resolved',
+        resolved_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', ticketId)
+      .select(`
+        *,
+        support_ticket_categories(name)
+      `)
+      .single();
+
+    if (error) throw error;
+    if (!data) throw new Error('Failed to resolve ticket');
+
+    // Get the assigned user's email if assigned_to exists
+    let assignedEmail = null;
+    if (data.assigned_to) {
+      const { data: userInfo, error: userError } = await supabase
+        .from('user_details')
+        .select('email')
+        .eq('user_id', data.assigned_to)
+        .single();
+
+      assignedEmail = (!userError && userInfo) ? userInfo.email : null;
+    }
+
+    return {
+      ...data,
+      customer_email: data.customer_email,
+      assigned_to_email: assignedEmail,
+      category_name: data.support_ticket_categories?.name
+    };
+  },
+
+  // Update ticket status
+  async updateStatus(ticketId: number, status: string, priority?: string): Promise<SupportTicket> {
+    console.log('🔄 API: Updating ticket', ticketId, 'status to', status);
+
+    const updateData: any = {
+      status: status,
+      updated_at: new Date().toISOString()
+    };
+
+    if (priority) updateData.priority = priority;
+    if (status === 'resolved') updateData.resolved_at = new Date().toISOString();
+    if (status === 'closed') updateData.closed_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('support_tickets')
+      .update(updateData)
+      .eq('id', ticketId)
+      .select(`
+        *,
+        support_ticket_categories(name)
+      `)
+      .single();
+
+    if (error) throw error;
+    if (!data) throw new Error('Failed to update ticket status');
+
+    // Get the assigned user's email if assigned_to exists
+    let assignedEmail = null;
+    if (data.assigned_to) {
+      const { data: userInfo, error: userError } = await supabase
+        .from('user_details')
+        .select('email')
+        .eq('user_id', data.assigned_to)
+        .single();
+
+      assignedEmail = (!userError && userInfo) ? userInfo.email : null;
+    }
+
+    return {
+      ...data,
+      customer_email: data.customer_email,
+      assigned_to_email: assignedEmail,
+      category_name: data.support_ticket_categories?.name
+    };
   },
 
   // Get ticket responses
   async getResponses(ticketId: number): Promise<TicketResponse[]> {
-    const { data, error } = await supabase
+    // First get the responses
+    const { data: responses, error: responsesError } = await supabase
       .from('ticket_responses')
-      .select(`
-        *,
-        responder:responder_id(email)
-      `)
+      .select('*')
       .eq('ticket_id', ticketId)
       .order('created_at', { ascending: true });
 
-    if (error) throw error;
+    if (responsesError) throw responsesError;
 
-    return (data || []).map(response => ({
+    // Get unique responder IDs
+    const responderIds = [...new Set((responses || []).map(r => r.responder_id).filter(id => id))];
+
+    // Fetch responder emails if we have responder IDs
+    let responderEmails: { [key: string]: string } = {};
+    if (responderIds.length > 0) {
+      const { data: users, error: usersError } = await supabase
+        .from('user_details')
+        .select('user_id, email')
+        .in('user_id', responderIds);
+
+      if (!usersError && users) {
+        users.forEach(user => {
+          responderEmails[user.user_id] = user.email || 'Unknown';
+        });
+      }
+    }
+
+    // Combine the data
+    return (responses || []).map(response => ({
       ...response,
-      responder_email: response.responder?.email
+      responder_email: responderEmails[response.responder_id] || null
     }));
   },
 
@@ -848,8 +1061,75 @@ export const supportTicketCategoryService = {
 
 // Customer Service (for admin use)
 export const customerService = {
-  // Get all customers from support tickets (only people who submitted tickets)
+  // Helper function to validate UUID
+  isValidUUID(uuid: string): boolean {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
+  },
+  // Get all customers from auth.users (admin only)
   async getAll(): Promise<any[]> {
+    console.log('👥 API: Fetching all users (customers, employees, admins)...');
+
+    // Skip admin API call since it requires service role permissions
+    // Go directly to the method that gets all users
+    return await this.getAllUsers();
+  },
+
+  // Get customers for employees (from tickets they can access)
+  async getAllForEmployees(): Promise<any[]> {
+    console.log('👥 API: Getting customers for employees (from accessible tickets)...');
+
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error('❌ No authenticated user');
+        return [];
+      }
+
+      // Get tickets assigned to this employee OR unassigned tickets
+      const { data: tickets, error: ticketsError } = await supabase
+        .from('support_tickets')
+        .select('customer_id, customer_email, customer_name, created_at, assigned_to')
+        .or(`assigned_to.eq.${user.id},assigned_to.is.null`)
+        .order('created_at', { ascending: false });
+
+      if (ticketsError) {
+        console.error('❌ Error fetching accessible tickets:', ticketsError);
+        throw ticketsError;
+      }
+
+      // Create a map to get unique customers
+      const customerMap = new Map();
+      (tickets || []).forEach(ticket => {
+        const key = ticket.customer_email || ticket.customer_id;
+        if (key && !customerMap.has(key)) {
+          customerMap.set(key, {
+            user_id: ticket.customer_id || ticket.customer_email,
+            email: ticket.customer_email,
+            user_created_at: ticket.created_at,
+            customer_name: ticket.customer_name,
+            last_sign_in_at: null,
+            email_confirmed_at: null,
+            role: 'customer',
+            role_assigned_at: null
+          });
+        }
+      });
+
+      const customers = Array.from(customerMap.values());
+      console.log('✅ API: Employee customers from accessible tickets:', customers);
+      return customers;
+    } catch (error) {
+      console.error('❌ API Error in getAllForEmployees:', error);
+      throw error;
+    }
+  },
+
+  // Fallback method - get customers from support tickets (for when admin API fails)
+  async getAllFromTickets(): Promise<any[]> {
+    console.log('🎫 API: Getting customers from support tickets (fallback)...');
+
     // Get unique customers from support tickets
     const { data, error } = await supabase
       .from('support_tickets')
@@ -857,37 +1137,192 @@ export const customerService = {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
+    console.log('🎫 API: Found', data?.length || 0, 'support tickets');
 
-    // Create a map to get unique customers and group by email
+    // Get all user roles to assign proper roles
+    const { data: rolesData, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('user_id, role, created_at');
+
+    if (rolesError) {
+      console.warn('⚠️ API: Could not fetch user roles:', rolesError);
+    }
+    console.log('🎫 API: Found', rolesData?.length || 0, 'user roles');
+
+    // Create a map of user_id to role
+    const roleMap = new Map();
+    (rolesData || []).forEach(roleEntry => {
+      roleMap.set(roleEntry.user_id, {
+        role: roleEntry.role,
+        role_assigned_at: roleEntry.created_at
+      });
+    });
+    console.log('🎫 API: Role map created with', roleMap.size, 'entries');
+
+    // Create a map to get unique customers from tickets
     const customerMap = new Map();
     (data || []).forEach(ticket => {
       const key = ticket.customer_email || ticket.customer_id;
       if (key && !customerMap.has(key)) {
+        // Use customer_id if it's a valid UUID, otherwise create a placeholder ID
+        const userId = ticket.customer_id && this.isValidUUID(ticket.customer_id) ? ticket.customer_id : `email_${ticket.customer_email}`;
+
+        // Get role from roleMap, default to 'customer' if not found
+        const roleInfo = roleMap.get(userId) || { role: 'customer', role_assigned_at: null };
+
         customerMap.set(key, {
-          user_id: ticket.customer_id || ticket.customer_email,
+          user_id: userId,
           email: ticket.customer_email,
           user_created_at: ticket.created_at,
           customer_name: ticket.customer_name,
           last_sign_in_at: null,
           email_confirmed_at: null,
-          role: 'customer',
-          role_assigned_at: null
+          role: roleInfo.role,
+          role_assigned_at: roleInfo.role_assigned_at,
+          // Flag to indicate if this is a real user account or just email-based
+          is_placeholder: !ticket.customer_id || !this.isValidUUID(ticket.customer_id)
         });
       }
     });
 
-    return Array.from(customerMap.values());
+    const result = Array.from(customerMap.values());
+    console.log('🎫 API: Returning', result.length, 'customers');
+    console.log('🎫 API: Customers with roles:', result.map(c => ({ email: c.email, role: c.role })));
+
+    return result;
+  },
+
+  // Get all users (customers, employees, admins) from user_roles and support tickets
+  async getAllUsers(): Promise<any[]> {
+    console.log('👥 API: Getting all users (customers, employees, admins)...');
+
+    // Get customers from support tickets
+    const customers = await this.getAllFromTickets();
+
+    // Get all user roles to include employees and admins
+    const { data: rolesData, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('user_id, role, created_at, name');
+
+    if (rolesError) {
+      console.warn('⚠️ API: Could not fetch user roles:', rolesError);
+      return customers; // Return just customers if roles query fails
+    }
+
+    // Create a map of existing customers
+    const userMap = new Map();
+    customers.forEach(customer => {
+      userMap.set(customer.user_id, customer);
+    });
+
+    // Add employees and admins from user_roles (even if they don't have tickets)
+    (rolesData || []).forEach(roleEntry => {
+      // Skip customers since they're already added
+      if (roleEntry.role === 'customer') return;
+
+      const userId = roleEntry.user_id;
+      if (!userMap.has(userId)) {
+        // This is a new user (employee/admin) not found in tickets
+        userMap.set(userId, {
+          user_id: userId,
+          email: null, // We don't have email from user_roles
+          user_created_at: roleEntry.created_at,
+          customer_name: roleEntry.name || null, // Use name from user_roles
+          last_sign_in_at: null,
+          email_confirmed_at: null,
+          role: roleEntry.role,
+          role_assigned_at: roleEntry.created_at,
+          is_placeholder: false
+        });
+      }
+    });
+
+    const result = Array.from(userMap.values());
+    console.log('👥 API: Returning', result.length, 'total users');
+    console.log('👥 API: Users with roles:', result.map(u => ({ id: u.user_id, email: u.email, role: u.role })));
+
+    return result;
+  },
+
+  // Get customer by ID
+  async getById(userId: string): Promise<any> {
+    console.log('👤 API: Fetching customer by ID:', userId);
+
+    // Try to get from auth.users first
+    try {
+      const { data: user, error: userError } = await supabase.auth.admin.getUserById(userId);
+
+      if (userError) throw userError;
+
+      // Get role
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      return {
+        user_id: user.user.id,
+        email: user.user.email,
+        user_created_at: user.user.created_at,
+        last_sign_in_at: user.user.last_sign_in_at,
+        email_confirmed_at: user.user.email_confirmed_at,
+        role: roleData?.role || 'customer',
+        role_assigned_at: roleData?.assigned_at || null,
+        customer_name: user.user.user_metadata?.full_name || user.user.user_metadata?.name || null
+      };
+    } catch (error) {
+      console.error('❌ API Error fetching user by ID:', error);
+      throw error;
+    }
   },
 
   // Delete a customer (admin only)
   async deleteCustomer(userId: string): Promise<void> {
-    // Delete all tickets for this customer
-    const { error: ticketError } = await supabase
-      .from('support_tickets')
-      .delete()
-      .or(`customer_id.eq.${userId},customer_email.eq.${userId}`);
+    console.log('🗑️ API: Deleting customer:', userId);
 
-    if (ticketError) throw ticketError;
+    try {
+      // Delete from auth.users (admin only)
+      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+      if (authError) throw authError;
+
+      // Delete user role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+
+      if (roleError) console.error('Error deleting user role:', roleError);
+
+      // Delete all tickets for this customer
+      const { error: ticketError } = await supabase
+        .from('support_tickets')
+        .delete()
+        .or(`customer_id.eq.${userId}`);
+
+      if (ticketError) console.error('Error deleting user tickets:', ticketError);
+
+      console.log('✅ API: Customer deleted successfully');
+    } catch (error) {
+      console.error('❌ API Error deleting customer:', error);
+      throw error;
+    }
+  },
+
+  // Update customer role
+  async updateRole(userId: string, role: string): Promise<void> {
+    console.log('🔄 API: Updating customer role:', userId, role);
+
+    const { error } = await supabase
+      .from('user_roles')
+      .upsert({
+        user_id: userId,
+        role: role,
+        assigned_at: new Date().toISOString()
+      });
+
+    if (error) throw error;
+    console.log('✅ API: Customer role updated successfully');
   }
 };
 

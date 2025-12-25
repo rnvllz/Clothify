@@ -51,17 +51,17 @@ const EmployeeInformation: React.FC = () => {
             <CardDescription className="text-sm">Helpful guides and documentation</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <a href="#" className="block text-blue-600 hover:underline text-sm font-medium">
-              Employee Quick Start Guide
+            <a href="/employee/guide" className="block text-blue-600 hover:underline text-sm font-medium">
+              Employee Guide - Complete Manual
+            </a>
+            <a href="/support/faq" className="block text-blue-600 hover:underline text-sm font-medium">
+              FAQ - Frequently Asked Questions
             </a>
             <a href="#" className="block text-blue-600 hover:underline text-sm font-medium">
               Dashboard Navigation Tips
             </a>
             <a href="#" className="block text-blue-600 hover:underline text-sm font-medium">
               Common Tasks & Workflows
-            </a>
-            <a href="#" className="block text-blue-600 hover:underline text-sm font-medium">
-              FAQ - Frequently Asked Questions
             </a>
           </CardContent>
         </Card>

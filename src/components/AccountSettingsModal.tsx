@@ -20,7 +20,9 @@ const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOpen, onC
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [originalName, setOriginalName] = useState('');
   const [formData, setFormData] = useState({
+    name: '',
     email: '',
     currentPassword: '',
     newPassword: '',
@@ -39,10 +41,28 @@ const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOpen, onC
           if (error) throw error;
           if (user) {
             setUser(user);
+
+            // Get user role and name from user_roles table
+            const { data: userRoleData, error: roleError } = await supabase
+              .from('user_roles')
+              .select('name')
+              .eq('user_id', user.id)
+              .single();
+
+            if (roleError) {
+              console.error('❌ Error fetching user role/name:', roleError);
+              // If the name column doesn't exist, it will fail here
+              toast.error('Database setup incomplete. Please add the name column to user_roles table.');
+            }
+
             setFormData(prev => ({
               ...prev,
               email: user.email || '',
+              name: userRoleData?.name || '',
             }));
+
+            // Store the original name for change detection
+            setOriginalName(userRoleData?.name || '');
           }
         } catch (error) {
           console.error('Error fetching user:', error);
@@ -72,6 +92,65 @@ const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOpen, onC
       toast.success('Email update initiated. Please check your email to confirm the change.');
     } catch (error: any) {
       toast.error(error.message || 'Failed to update email');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdateName = async () => {
+    console.log('🔄 handleUpdateName called with name:', formData.name);
+    console.log('👤 Current user:', user);
+
+    if (!formData.name.trim()) {
+      console.log('❌ Name is empty');
+      toast.error('Name cannot be empty');
+      return;
+    }
+
+    if (!user?.id) {
+      console.log('❌ No user ID');
+      toast.error('User not authenticated');
+      return;
+    }
+
+    setSaving(true);
+    console.log('📝 Starting name update...');
+
+    try {
+      console.log('🔍 Checking user_roles table...');
+      // First check if the user exists in user_roles
+      const { data: existingUser, error: checkError } = await supabase
+        .from('user_roles')
+        .select('user_id, name')
+        .eq('user_id', user.id)
+        .single();
+
+      if (checkError) {
+        console.error('❌ Error checking user in user_roles:', checkError);
+        throw new Error(`User not found in roles table: ${checkError.message}`);
+      }
+
+      console.log('✅ User found in user_roles:', existingUser);
+
+      const { data, error } = await supabase
+        .from('user_roles')
+        .update({ name: formData.name.trim() })
+        .eq('user_id', user.id)
+        .select();
+
+      if (error) {
+        console.error('❌ Update error:', error);
+        throw error;
+      }
+
+      console.log('✅ Update successful, returned data:', data);
+      toast.success('Name updated successfully');
+
+      // Update the original name so the button becomes disabled again
+      setOriginalName(formData.name.trim());
+    } catch (error: any) {
+      console.error('❌ Failed to update name:', error);
+      toast.error(error.message || 'Failed to update name');
     } finally {
       setSaving(false);
     }
@@ -115,6 +194,7 @@ const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOpen, onC
   const handleClose = () => {
     // Reset form data when closing
     setFormData({
+      name: originalName,
       email: user?.email || '',
       currentPassword: '',
       newPassword: '',
@@ -129,7 +209,7 @@ const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOpen, onC
   if (loading) {
     return (
       <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-150 max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <User className="w-5 h-5" />
@@ -149,7 +229,7 @@ const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOpen, onC
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-150">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="w-5 h-5" />
@@ -177,6 +257,34 @@ const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOpen, onC
           </TabsList>
 
           <TabsContent value="profile" className="space-y-4 mt-6">
+            <div className="space-y-2">
+              <Label htmlFor="name">Display Name</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="name"
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  placeholder="Enter your display name"
+                  className="flex-1"
+                />
+                <Button
+                  onClick={() => {
+                    console.log('🖱️ Name save button clicked');
+                    handleUpdateName();
+                  }}
+                  disabled={saving || !formData.name.trim() || formData.name.trim() === originalName.trim()}
+                  variant="outline"
+                  size="sm"
+                >
+                  {saving ? 'Saving...' : <Save className="w-4 h-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                This name will be displayed in the system
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
               <div className="flex gap-2">

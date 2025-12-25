@@ -23,6 +23,8 @@ import Members from "./pages/admin/Members";
 import Settings from "./pages/admin/Settings";
 import Information from "./pages/admin/Information";
 import TicketDebug from "./pages/admin/TicketDebug";
+import AdminGuide from "./pages/admin/AdminGuide";
+import EmployeeGuide from "./pages/employees/EmployeeGuide";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import Tracking from "./pages/Tracking";
@@ -120,6 +122,11 @@ const App: React.FC = () => {
                 <EmployeeInformation />
               </ProtectedRoute>
             } />
+            <Route path="guide" element={
+              <ProtectedRoute requiredRole="employee">
+                <EmployeeGuide />
+              </ProtectedRoute>
+            } />
           </Route>
 
           {/* Admin Routes */}
@@ -177,6 +184,11 @@ const App: React.FC = () => {
             <Route path="information" element={
               <ProtectedRoute requiredRole="admin">
                 <Information />
+              </ProtectedRoute>
+            } />
+            <Route path="guide" element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminGuide />
               </ProtectedRoute>
             } />
           </Route>

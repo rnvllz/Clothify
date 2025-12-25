@@ -67,6 +67,86 @@ CREATE INDEX IF NOT EXISTS idx_ticket_responses_created_at ON ticket_responses(c
 
 CREATE INDEX IF NOT EXISTS idx_ticket_attachments_ticket_id ON ticket_attachments(ticket_id);
 
+-- Create user roles table (if it doesn't exist)
+CREATE TABLE IF NOT EXISTS user_roles (
+    id SERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'employee')),
+    name VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id)
+);
+
+-- Create index for user_roles
+CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_roles_role ON user_roles(role);
+
+-- Enable RLS on user_roles
+ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
+
+-- RLS policies for user_roles
+DROP POLICY IF EXISTS "Users can view their own role" ON user_roles;
+DROP POLICY IF EXISTS "Admins can view all roles" ON user_roles;
+DROP POLICY IF EXISTS "Admins can manage roles" ON user_roles;
+
+CREATE POLICY "Users can view their own role" ON user_roles
+    FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "Admins can view all roles" ON user_roles
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM user_roles
+            WHERE user_id = auth.uid()
+            AND role = 'admin'
+        )
+    );
+
+CREATE POLICY "Admins can manage roles" ON user_roles
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM user_roles
+            WHERE user_id = auth.uid()
+            AND role = 'admin'
+        )
+    );
+
+-- Create a view for user information that admins can access
+DROP VIEW IF EXISTS user_details;
+CREATE OR REPLACE VIEW user_details AS
+SELECT
+    ur.user_id,
+    ur.role,
+    ur.name,
+    au.email,
+    ur.created_at as role_assigned_at,
+    au.created_at as user_created_at
+FROM user_roles ur
+JOIN auth.users au ON ur.user_id = au.id;
+
+-- Enable RLS on the view
+ALTER VIEW user_details SET (security_barrier = true);
+ALTER VIEW user_details ENABLE ROW LEVEL SECURITY;
+
+-- Grant access to authenticated users (RLS will control access)
+GRANT SELECT ON user_details TO authenticated;
+
+-- RLS policies for user_details view
+DROP POLICY IF EXISTS "Admins can view all user info" ON user_details;
+DROP POLICY IF EXISTS "Users can view their own info" ON user_details;
+
+CREATE POLICY "Admins can view all user info" ON user_details
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM user_roles
+            WHERE user_id = auth.uid()
+            AND role IN ('admin', 'employee')
+        )
+    );
+
+CREATE POLICY "Users can view their own info" ON user_details
+    FOR SELECT USING (user_id = auth.uid());
+
 -- Row Level Security (RLS) Policies
 
 -- Enable RLS on all tables
@@ -76,15 +156,18 @@ ALTER TABLE ticket_responses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ticket_attachments ENABLE ROW LEVEL SECURITY;
 
 -- Support ticket categories: readable by all authenticated users
+DROP POLICY IF EXISTS "Support ticket categories are viewable by authenticated users" ON support_ticket_categories;
 CREATE POLICY "Support ticket categories are viewable by authenticated users" ON support_ticket_categories
     FOR SELECT USING (auth.role() = 'authenticated');
 
 -- Support tickets policies
 -- Allow anyone to create tickets (for anonymous support)
+DROP POLICY IF EXISTS "Allow anyone to create tickets" ON support_tickets;
 CREATE POLICY "Allow anyone to create tickets" ON support_tickets
     FOR INSERT WITH CHECK (true);
 
 -- Allow authenticated users to view their own tickets
+DROP POLICY IF EXISTS "Users can view their own tickets" ON support_tickets;
 CREATE POLICY "Users can view their own tickets" ON support_tickets
     FOR SELECT USING (
         auth.uid() = customer_id OR
@@ -92,6 +175,7 @@ CREATE POLICY "Users can view their own tickets" ON support_tickets
     );
 
 -- Allow admins and employees to manage all tickets
+DROP POLICY IF EXISTS "Admins and employees can manage tickets" ON support_tickets;
 CREATE POLICY "Admins and employees can manage tickets" ON support_tickets
     FOR ALL USING (
         EXISTS (
@@ -101,6 +185,7 @@ CREATE POLICY "Admins and employees can manage tickets" ON support_tickets
     );
 
 -- Ticket responses policies
+DROP POLICY IF EXISTS "Users can view responses to their tickets" ON ticket_responses;
 CREATE POLICY "Users can view responses to their tickets" ON ticket_responses
     FOR SELECT USING (
         EXISTS (
@@ -114,6 +199,7 @@ CREATE POLICY "Users can view responses to their tickets" ON ticket_responses
         )
     );
 
+DROP POLICY IF EXISTS "Admins and employees can manage responses" ON ticket_responses;
 CREATE POLICY "Admins and employees can manage responses" ON ticket_responses
     FOR ALL USING (
         EXISTS (
@@ -123,6 +209,7 @@ CREATE POLICY "Admins and employees can manage responses" ON ticket_responses
     );
 
 -- Ticket attachments policies
+DROP POLICY IF EXISTS "Users can view attachments to their tickets" ON ticket_attachments;
 CREATE POLICY "Users can view attachments to their tickets" ON ticket_attachments
     FOR SELECT USING (
         EXISTS (
@@ -136,6 +223,7 @@ CREATE POLICY "Users can view attachments to their tickets" ON ticket_attachment
         )
     );
 
+DROP POLICY IF EXISTS "Admins and employees can manage attachments" ON ticket_attachments;
 CREATE POLICY "Admins and employees can manage attachments" ON ticket_attachments
     FOR ALL USING (
         EXISTS (

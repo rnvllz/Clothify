@@ -205,7 +205,6 @@ export interface SupportTicket {
   updated_at: string;
   resolved_at: string | null;
   closed_at: string | null;
-  customer_email?: string;
   assigned_to_email?: string;
   category_name?: string;
 }
@@ -279,6 +278,10 @@ export interface ProductInventory {
   last_restocked_at?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface ProductWithInventory extends ProductInventory {
+  products: Product;
 }
 
 export interface InventoryMovement {

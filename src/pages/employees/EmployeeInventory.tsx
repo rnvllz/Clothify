@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { productService } from '../../api/api';
-import type { Product } from '../../types/database';
+import { inventoryService } from '../../api/api';
+import type { ProductWithInventory } from '../../types/database';
 import { Package, RefreshCw, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 const EmployeeInventory: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<ProductWithInventory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,10 +18,10 @@ const EmployeeInventory: React.FC = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const data = await productService.getAll();
-      setProducts(data);
+      const data = await inventoryService.getInventoryWithProducts();
+      setInventoryItems(data);
     } catch (err) {
-      console.error('Error fetching products:', err);
+      console.error('Error fetching inventory:', err);
       setError('Failed to load inventory');
     } finally {
       setLoading(false);
@@ -106,7 +106,7 @@ const EmployeeInventory: React.FC = () => {
           <CardDescription className="text-sm">Monitor inventory status and stock levels across all products</CardDescription>
         </CardHeader>
         <CardContent className="p-4 sm:p-6">
-          {products.length === 0 ? (
+          {inventoryItems.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>No products found in inventory</p>
@@ -114,14 +114,14 @@ const EmployeeInventory: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-3 sm:space-y-4">
-              {products.map((product) => (
-                <div key={product.id} className="border rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow">
+              {inventoryItems.map((item) => (
+                <div key={item.id} className="border rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow">
                   <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                    {product.image && (
+                    {item.products.image && (
                       <div className="shrink-0">
                         <img
-                          src={product.image}
-                          alt={product.title}
+                          src={item.products.image}
+                          alt={item.products.title}
                           className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg"
                         />
                       </div>
@@ -129,20 +129,20 @@ const EmployeeInventory: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
                         <div>
-                          <h3 className="font-semibold text-sm sm:text-base truncate">{product.title}</h3>
-                          <p className="text-xs sm:text-sm text-gray-600">SKU: {product.sku || `PRD-${product.id}`}</p>
+                          <h3 className="font-semibold text-sm sm:text-base truncate">{item.products.title}</h3>
+                          <p className="text-xs sm:text-sm text-gray-600">SKU: {item.sku || `PRD-${item.product_id}`}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-sm sm:text-base">${product.price}</p>
+                          <p className="font-semibold text-sm sm:text-base">${item.products.price}</p>
                         </div>
                       </div>
-                      <p className="text-xs sm:text-sm text-gray-700 mb-2 line-clamp-2">{product.description}</p>
+                      <p className="text-xs sm:text-sm text-gray-700 mb-2 line-clamp-2">{item.products.description}</p>
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <span className={`font-semibold text-sm sm:text-base ${getStockLevel(product.stock || 0)}`}>
-                            {product.stock || 0} units
+                          <span className={`font-semibold text-sm sm:text-base ${getStockLevel(item.stock_quantity)}`}>
+                            {item.stock_quantity} units
                           </span>
-                          {getStockStatusBadge(product.stock || 0)}
+                          {getStockStatusBadge(item.stock_quantity)}
                         </div>
                       </div>
                     </div>

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { customerService, supportTicketService } from '../../api/api';
-import { Users, RefreshCw, MessageSquare, AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { customerService, supportTicketService, orderService } from '../../api/api';
+import { supabase } from '../../api/api';
+import { Users, RefreshCw, MessageSquare, AlertTriangle, CheckCircle, Clock, XCircle, Eye, UserCheck, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import toast from 'react-hot-toast';
 
 interface Customer {
   user_id: string;
@@ -15,12 +16,13 @@ interface Customer {
   email_confirmed_at: string | null;
   role: string;
   role_assigned_at: string | null;
+  is_placeholder?: boolean;
 }
 
 interface SupportTicket {
   id: number;
   ticket_number: string;
-  customer_id: string;
+  customer_id: string | null;
   subject: string;
   description: string;
   status: 'open' | 'in-progress' | 'waiting-for-customer' | 'resolved' | 'closed';
@@ -41,6 +43,22 @@ const EmployeeCustomers: React.FC = () => {
   const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [customerDetails, setCustomerDetails] = useState<{
+    customer: Customer | null;
+    orders: any[];
+    tickets: any[];
+  } | null>(null);
+
+  // Ticket modal states
+  const [ticketDetails, setTicketDetails] = useState<{
+    ticket: SupportTicket | null;
+    responses: any[];
+  } | null>(null);
+  const [respondModal, setRespondModal] = useState<{
+    ticket: SupportTicket | null;
+    response: string;
+  } | null>(null);
+  const [confirmResolve, setConfirmResolve] = useState<SupportTicket | null>(null);
 
   useEffect(() => {
     fetchCustomers();
@@ -50,13 +68,31 @@ const EmployeeCustomers: React.FC = () => {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Fetching customers from support tickets...');
-      const customersData = await customerService.getAll();
+      setError(null); // Clear any previous errors
+      console.log('🔍 Fetching customers for employees...');
+
+      // Check if user is authenticated
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        console.error('❌ Auth error:', authError);
+        setError('Authentication error. Please log in again.');
+        return;
+      }
+      if (!user) {
+        console.error('❌ No authenticated user');
+        setError('Not authenticated. Please log in.');
+        return;
+      }
+      console.log('✅ Authenticated user:', user.email);
+
+      const customersData = await customerService.getAllForEmployees();
       console.log('✅ Customers fetched:', customersData);
-      setCustomers(customersData);
+
+      setCustomers(customersData || []);
     } catch (err) {
       console.error('❌ Error fetching customers:', err);
-      setError('Failed to load customers');
+      setError(`Failed to load customers: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setCustomers([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -64,12 +100,47 @@ const EmployeeCustomers: React.FC = () => {
 
   const fetchSupportTickets = async () => {
     try {
+      console.log('🔍 Fetching support tickets for employee...');
+
+      // Check authentication
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.error('❌ Auth error for tickets:', authError);
+        setSupportTickets([]);
+        return;
+      }
+
       // For employees, show tickets assigned to them or unassigned tickets
       const assignedTickets = await supportTicketService.getAssignedTickets();
-      const allTickets = await supportTicketService.getAll();
+      console.log('✅ Assigned tickets:', assignedTickets);
 
-      // Combine assigned tickets with unassigned ones for employee view
-      const unassignedTickets = allTickets.filter(ticket => !ticket.assigned_to);
+      // Get unassigned tickets (tickets with no assigned_to)
+      const { data: allTickets, error } = await supabase
+        .from('support_tickets')
+        .select(`
+          *,
+          support_ticket_categories(name)
+        `)
+        .is('assigned_to', null)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('❌ Error fetching unassigned tickets:', error);
+        setSupportTickets(assignedTickets);
+        return;
+      }
+
+      console.log('✅ Unassigned tickets:', allTickets);
+
+      // Transform unassigned tickets (no need to fetch user emails since they're unassigned)
+      const unassignedTickets = (allTickets || []).map(ticket => ({
+        ...ticket,
+        customer_email: ticket.customer_email,
+        assigned_to_email: null, // Unassigned tickets have no assigned email
+        category_name: ticket.support_ticket_categories?.name
+      }));
+
+      // Combine assigned and unassigned tickets
       const combinedTickets = [...assignedTickets, ...unassignedTickets];
 
       // Remove duplicates
@@ -77,62 +148,119 @@ const EmployeeCustomers: React.FC = () => {
         index === self.findIndex(t => t.id === ticket.id)
       );
 
+      console.log('✅ Combined tickets:', uniqueTickets);
       setSupportTickets(uniqueTickets);
     } catch (err) {
-      console.error('Error fetching support tickets:', err);
+      console.error('❌ Error fetching support tickets:', err);
+      setSupportTickets([]);
     }
   };
 
-  const getTicketStatusBadge = (status: string) => {
-    switch (status) {
-      case 'open':
-        return <Badge variant="destructive" className="flex items-center gap-1"><AlertCircle className="w-3 h-3" />Open</Badge>;
-      case 'in-progress':
-        return <Badge variant="secondary" className="flex items-center gap-1"><Clock className="w-3 h-3" />In Progress</Badge>;
-      case 'waiting-for-customer':
-        return <Badge variant="outline" className="flex items-center gap-1"><Clock className="w-3 h-3" />Waiting</Badge>;
-      case 'resolved':
-        return <Badge variant="default" className="flex items-center gap-1"><CheckCircle className="w-3 h-3" />Resolved</Badge>;
-      case 'closed':
-        return <Badge variant="secondary" className="flex items-center gap-1"><XCircle className="w-3 h-3" />Closed</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
+  const handleContactCustomer = async (customerEmail: string) => {
+    // Open email client or show contact form
+    const subject = encodeURIComponent('Support Inquiry');
+    const body = encodeURIComponent('Hello,\n\nI\'m reaching out regarding your recent inquiry...\n\nBest regards,\nSupport Team');
+    window.open(`mailto:${customerEmail}?subject=${subject}&body=${body}`);
+  };
+
+  const handleViewCustomerDetails = async (customerId: string, customerEmail: string) => {
+    try {
+      const customerOrders = await orderService.getByCustomerEmail(customerEmail);
+      const customerTickets = await supportTicketService.getTicketsByEmail(customerEmail);
+
+      setCustomerDetails({
+        customer: {
+          user_id: customerId,
+          email: customerEmail,
+          user_created_at: new Date().toISOString(),
+          customer_name: undefined,
+          last_sign_in_at: null,
+          email_confirmed_at: null,
+          role: 'customer',
+          role_assigned_at: null
+        },
+        orders: customerOrders,
+        tickets: customerTickets
+      });
+    } catch (error) {
+      console.error('Error fetching customer details:', error);
+      toast.error('Failed to load customer details');
     }
   };
 
-  const getPriorityBadge = (priority: string) => {
-    switch (priority) {
-      case 'urgent':
-        return <Badge variant="destructive" className="text-xs">URGENT</Badge>;
-      case 'high':
-        return <Badge variant="destructive" className="text-xs">HIGH</Badge>;
-      case 'medium':
-        return <Badge variant="secondary" className="text-xs">MEDIUM</Badge>;
-      case 'low':
-        return <Badge variant="outline" className="text-xs">LOW</Badge>;
-      default:
-        return <Badge variant="outline" className="text-xs">{priority}</Badge>;
+  const handleViewTicketDetails = async (ticketId: number, ticketSubject: string) => {
+    try {
+      const responses = await supportTicketService.getResponses(ticketId);
+      const ticket = supportTickets.find(t => t.id === ticketId);
+      setTicketDetails({
+        ticket: ticket || null,
+        responses: responses
+      });
+    } catch (error) {
+      console.error('Error fetching ticket details:', error);
+      toast.error('Failed to load ticket details');
     }
   };
 
-  const getCustomerStatusBadge = (lastSignIn: string | null, emailConfirmed: string | null) => {
-    if (!emailConfirmed) {
-      return <Badge variant="secondary">Unverified</Badge>;
-    }
-    if (!lastSignIn) {
-      return <Badge variant="outline">Never Signed In</Badge>;
-    }
-    return <Badge variant="default">Active</Badge>;
+  const handleRespondToTicket = (ticket: SupportTicket) => {
+    setRespondModal({
+      ticket,
+      response: ''
+    });
   };
 
-  const getRoleBadge = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return <Badge variant="destructive">Admin</Badge>;
-      case 'employee':
-        return <Badge variant="default">Employee</Badge>;
-      default:
-        return <Badge variant="outline">Customer</Badge>;
+  const handleSubmitResponse = async () => {
+    if (!respondModal || !respondModal.response.trim()) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      await supportTicketService.addResponse({
+        ticket_id: respondModal.ticket!.id,
+        responder_id: user.id,
+        response_text: respondModal.response,
+        is_internal: false
+      });
+
+      setRespondModal(null);
+      toast.success('Response added successfully!');
+      fetchSupportTickets(); // Refresh tickets
+    } catch (error) {
+      console.error('Error adding response:', error);
+      toast.error('Failed to add response');
+    }
+  };
+
+  const handleMarkResolved = (ticket: SupportTicket) => {
+    setConfirmResolve(ticket);
+  };
+
+  const handleConfirmResolve = async () => {
+    if (!confirmResolve) return;
+
+    try {
+      await supportTicketService.resolveTicket(confirmResolve.id);
+      setConfirmResolve(null);
+      toast.success('Ticket marked as resolved!');
+      fetchSupportTickets(); // Refresh tickets
+    } catch (error) {
+      console.error('Error resolving ticket:', error);
+      toast.error('Failed to resolve ticket');
+    }
+  };
+
+  const handleAssignToMe = async (ticketId: number, ticketSubject: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      await supportTicketService.assignTicket(ticketId, user.id);
+      toast.success('Ticket assigned to you successfully!');
+      fetchSupportTickets(); // Refresh tickets
+    } catch (error) {
+      console.error('Error assigning ticket:', error);
+      toast.error('Failed to assign ticket');
     }
   };
 
@@ -213,10 +341,14 @@ const EmployeeCustomers: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
                         <h3 className="font-semibold text-sm sm:text-base truncate">{customer.email}</h3>
-                        {getRoleBadge(customer.role)}
+                        <Badge variant={customer.role === 'admin' ? 'destructive' : customer.role === 'employee' ? 'default' : 'outline'}>
+                          {customer.role.charAt(0).toUpperCase() + customer.role.slice(1)}
+                        </Badge>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 mb-2">
-                        {getCustomerStatusBadge(customer.last_sign_in_at, customer.email_confirmed_at)}
+                        <Badge variant={!customer.email_confirmed_at ? 'secondary' : !customer.last_sign_in_at ? 'outline' : 'default'}>
+                          {!customer.email_confirmed_at ? 'Unverified' : !customer.last_sign_in_at ? 'Never Signed In' : 'Active'}
+                        </Badge>
                       </div>
                       <div className="text-xs sm:text-sm text-gray-600 space-y-1">
                         <p>Joined: {new Date(customer.user_created_at).toLocaleDateString()}</p>
@@ -224,11 +356,9 @@ const EmployeeCustomers: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                      <Button size="sm" variant="outline" onClick={() => alert(`Contact customer: ${customer.email}`)}>
-                        Contact
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => alert(`View customer details for: ${customer.email}`)}>
-                        View Details
+                      <Button size="sm" variant="outline" onClick={() => handleViewCustomerDetails(customer.user_id, customer.email)}>
+                        <Eye className="w-4 h-4 mr-1" />
+                        View
                       </Button>
                     </div>
                   </div>
@@ -256,83 +386,430 @@ const EmployeeCustomers: React.FC = () => {
               <p className="text-sm">New tickets will appear here</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {supportTickets.map((ticket) => (
-                <Card key={ticket.id} className="p-4">
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
+                <div key={ticket.id} className="border rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-sm sm:text-base mb-1">{ticket.subject}</h3>
-                      <p className="text-xs sm:text-sm text-gray-600 mb-2">
-                        Ticket #{ticket.ticket_number} • {ticket.customer_email}
-                      </p>
-                      {ticket.category_name && (
-                        <p className="text-xs sm:text-sm text-gray-500 mb-2">Category: {ticket.category_name}</p>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                        <h3 className="font-semibold text-sm sm:text-base truncate">{ticket.subject}</h3>
+                        <Badge variant={
+                          ticket.status === 'open' ? 'destructive' :
+                          ticket.status === 'in-progress' ? 'default' :
+                          ticket.status === 'resolved' ? 'secondary' :
+                          'outline'
+                        }>
+                          {ticket.status.replace('-', ' ')}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {ticket.priority.toUpperCase()}
+                        </Badge>
+                      </div>
+                      <p className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2">{ticket.description}</p>
+                      <div className="text-xs sm:text-sm text-gray-600 space-y-1">
+                        <p>Ticket #{ticket.ticket_number} • From: {ticket.customer_email}</p>
+                        {ticket.category_name && <p>Category: {ticket.category_name}</p>}
+                        <p>Created: {new Date(ticket.created_at).toLocaleDateString()}</p>
+                      </div>
+                      {/* Assignee Information */}
+                      {ticket.assigned_to_email ? (
+                        <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                          <div className="flex items-center gap-2">
+                            <UserCheck className="h-4 w-4 text-blue-600" />
+                            <span className="text-xs font-medium text-blue-900">
+                              Assigned to: {ticket.assigned_to_email}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded-md">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-orange-600" />
+                            <span className="text-xs font-medium text-orange-900">
+                              Unassigned - Available for pickup
+                            </span>
+                          </div>
+                        </div>
                       )}
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {getPriorityBadge(ticket.priority)}
-                      {getTicketStatusBadge(ticket.status)}
+                    <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                      {ticket.status !== 'resolved' && ticket.status !== 'closed' && (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => handleRespondToTicket(ticket)}>
+                            <MessageSquare className="w-4 h-4 mr-1" />
+                            Respond
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleMarkResolved(ticket)}>
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Resolve
+                          </Button>
+                          {!ticket.assigned_to && (
+                            <Button size="sm" variant="outline" onClick={() => handleAssignToMe(ticket.id, ticket.subject)}>
+                              <UserCheck className="w-4 h-4 mr-1" />
+                              Assign to Me
+                            </Button>
+                          )}
+                        </>
+                      )}
+                      <Button size="sm" variant="outline" onClick={() => handleViewTicketDetails(ticket.id, ticket.subject)}>
+                        <Eye className="w-4 h-4 mr-1" />
+                        Details
+                      </Button>
                     </div>
                   </div>
-
-                  <p className="text-sm text-gray-700 mb-3 line-clamp-3">{ticket.description}</p>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-gray-500 mb-3">
-                    <span>Created: {new Date(ticket.created_at).toLocaleDateString()}</span>
-                    <span>Updated: {new Date(ticket.updated_at).toLocaleDateString()}</span>
-                  </div>
-
-                  {ticket.assigned_to_email && (
-                    <p className="text-xs text-gray-600 mb-3">Assigned to: {ticket.assigned_to_email}</p>
-                  )}
-
-                  <Separator className="my-3" />
-
-                  <div className="flex flex-wrap gap-2">
-                    {ticket.status !== 'resolved' && ticket.status !== 'closed' && (
-                      <>
-                        <Button size="sm" onClick={() => alert(`Respond to ticket: ${ticket.subject}`)}>
-                          Respond
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => alert(`Mark ticket as resolved: ${ticket.subject}`)}>
-                          Mark Resolved
-                        </Button>
-                        {!ticket.assigned_to && (
-                          <Button size="sm" variant="secondary" onClick={() => alert(`Assign ticket to yourself: ${ticket.subject}`)}>
-                            Assign to Me
-                          </Button>
-                        )}
-                      </>
-                    )}
-                    <Button size="sm" variant="outline" onClick={() => alert(`View full ticket details: ${ticket.subject}`)}>
-                      View Details
-                    </Button>
-                  </div>
-                </Card>
+                </div>
               ))}
             </div>
           )}
-
-          <Separator className="my-6" />
-
-          <div className="bg-muted p-4 rounded-lg">
-            <h3 className="font-medium mb-2 text-sm">Support Guidelines</h3>
-            <p className="text-sm text-muted-foreground mb-3">
-              As an employee, you can assist customers with:
-            </p>
-            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-              <li>Order status inquiries</li>
-              <li>Product information and recommendations</li>
-              <li>Basic account support</li>
-              <li>Return and exchange guidance</li>
-              <li>Shipping information</li>
-            </ul>
-            <p className="text-sm text-muted-foreground mt-3">
-              For complex issues or account modifications, please escalate to an administrator.
-            </p>
-          </div>
         </CardContent>
       </Card>
+
+      {/* Customer Details Modal */}
+      {customerDetails ? (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <Users className="h-6 w-6 text-blue-500" />
+                  <h3 className="text-xl font-semibold">Customer Details</h3>
+                </div>
+                <button
+                  onClick={() => setCustomerDetails(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XCircle className="h-6 w-6" />
+                </button>
+              </div>
+
+              {customerDetails.customer && (
+                <div className="space-y-6">
+                  {/* Customer Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Email</label>
+                        <p className="text-sm font-medium">{customerDetails.customer.email}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Name</label>
+                        <p className="text-sm">{customerDetails.customer.customer_name || 'Not provided'}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">First Seen</label>
+                        <p className="text-sm">{new Date(customerDetails.customer.user_created_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">{customerDetails.orders.length}</div>
+                      <div className="text-sm text-gray-500">Orders</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">{customerDetails.tickets.length}</div>
+                      <div className="text-sm text-gray-500">Support Tickets</div>
+                    </div>
+                  </div>
+
+                  {/* Recent Orders */}
+                  {customerDetails.orders.length > 0 && (
+                    <div>
+                      <h4 className="font-medium mb-3">Recent Orders</h4>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {customerDetails.orders.slice(0, 5).map((order, index) => (
+                          <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                            <span className="text-sm">Order #{order.id}</span>
+                            <span className="text-sm font-medium">${order.total_amount}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recent Tickets */}
+                  {customerDetails.tickets.length > 0 && (
+                    <div>
+                      <h4 className="font-medium mb-3">Recent Support Tickets</h4>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {customerDetails.tickets.slice(0, 5).map((ticket, index) => (
+                          <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                            <span className="text-sm truncate">{ticket.subject}</span>
+                            <Badge variant={
+                              ticket.status === 'open' ? 'destructive' :
+                              ticket.status === 'in-progress' ? 'default' :
+                              ticket.status === 'resolved' ? 'secondary' :
+                              'outline'
+                            } className="text-xs">
+                              {ticket.status.replace('-', ' ')}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Ticket Details Modal */}
+      {ticketDetails ? (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <MessageSquare className="h-6 w-6 text-blue-500" />
+                  <h3 className="text-xl font-semibold">Ticket Details</h3>
+                </div>
+                <button
+                  onClick={() => setTicketDetails(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XCircle className="h-6 w-6" />
+                </button>
+              </div>
+
+              {ticketDetails.ticket && (
+                <div className="space-y-6">
+                  {/* Ticket Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Subject</label>
+                        <p className="text-sm font-medium">{ticketDetails.ticket.subject}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Ticket Number</label>
+                        <p className="text-sm">#{ticketDetails.ticket.ticket_number}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Customer</label>
+                        <p className="text-sm">{ticketDetails.ticket.customer_email}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Status</label>
+                        <Badge variant={
+                          ticketDetails.ticket.status === 'open' ? 'destructive' :
+                          ticketDetails.ticket.status === 'in-progress' ? 'default' :
+                          ticketDetails.ticket.status === 'resolved' ? 'secondary' :
+                          'outline'
+                        }>
+                          {ticketDetails.ticket.status.replace('-', ' ')}
+                        </Badge>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Priority</label>
+                        <Badge variant="outline" className="text-xs">
+                          {ticketDetails.ticket.priority.toUpperCase()}
+                        </Badge>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Created</label>
+                        <p className="text-sm">{new Date(ticketDetails.ticket.created_at).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Assignee Information */}
+                  <div className="border-t pt-4">
+                    <label className="text-sm font-medium text-gray-500 block mb-3">Assignment Details</label>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      {ticketDetails.ticket.assigned_to ? (
+                        <div className="flex items-center gap-3">
+                          <UserCheck className="h-5 w-5 text-blue-600" />
+                          <div>
+                            <p className="text-sm font-medium text-blue-900">
+                              Assigned to: {ticketDetails.ticket.assigned_to_email || 'Unknown Employee'}
+                            </p>
+                            <p className="text-xs text-blue-700">
+                              This ticket is currently being handled by a support team member
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <AlertTriangle className="h-5 w-5 text-orange-600" />
+                          <div>
+                            <p className="text-sm font-medium text-orange-900">
+                              Unassigned Ticket
+                            </p>
+                            <p className="text-xs text-orange-700">
+                              This ticket is available for assignment and needs attention
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Description</label>
+                    <div className="mt-1 p-3 bg-gray-50 rounded-md">
+                      <p className="text-sm whitespace-pre-wrap">{ticketDetails.ticket.description}</p>
+                    </div>
+                  </div>
+
+                  {/* Responses */}
+                  <div>
+                    <h4 className="font-medium mb-3">Responses ({ticketDetails.responses.length})</h4>
+                    {ticketDetails.responses.length > 0 ? (
+                      <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {ticketDetails.responses.map((response, index) => (
+                          <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="font-medium text-sm">{response.responder_email || 'Unknown'}</span>
+                              <span className="text-xs text-gray-500">{new Date(response.created_at).toLocaleString()}</span>
+                            </div>
+                            <p className="text-sm whitespace-pre-wrap">{response.response_text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">No responses yet</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Respond to Ticket Modal */}
+      {respondModal ? (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <MessageSquare className="h-6 w-6 text-blue-500" />
+                  <h3 className="text-xl font-semibold">Respond to Ticket</h3>
+                </div>
+                <button
+                  onClick={() => setRespondModal(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XCircle className="h-6 w-6" />
+                </button>
+              </div>
+
+              {respondModal.ticket && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Ticket</label>
+                    <p className="text-sm font-medium">{respondModal.ticket.subject}</p>
+                    <p className="text-xs text-gray-500">#{respondModal.ticket.ticket_number} • {respondModal.ticket.customer_email}</p>
+                  </div>
+
+                  {/* Assignee Information */}
+                  {respondModal.ticket.assigned_to_email ? (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <div className="flex items-center gap-2">
+                        <UserCheck className="h-4 w-4 text-blue-600" />
+                        <div>
+                          <p className="text-xs font-medium text-blue-900">
+                            Currently assigned to: {respondModal.ticket.assigned_to_email}
+                          </p>
+                          <p className="text-xs text-blue-700">
+                            Coordinate with this team member if needed
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-orange-50 border border-orange-200 rounded-md">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-orange-600" />
+                        <div>
+                          <p className="text-xs font-medium text-orange-900">
+                            Unassigned ticket - Consider assigning it first
+                          </p>
+                          <p className="text-xs text-orange-700">
+                            You can assign this ticket to yourself after responding
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 block mb-2">Your Response</label>
+                    <textarea
+                      className="w-full p-3 border rounded-md resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      rows={6}
+                      placeholder="Type your response here..."
+                      value={respondModal.response}
+                      onChange={(e) => setRespondModal({...respondModal, response: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <Button onClick={handleSubmitResponse} disabled={!respondModal.response.trim()}>
+                      Send Response
+                    </Button>
+                    <Button variant="outline" onClick={() => setRespondModal(null)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Confirm Resolve Modal */}
+      {confirmResolve ? (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <CheckCircle className="h-6 w-6 text-green-500" />
+                <h3 className="text-xl font-semibold">Confirm Resolution</h3>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Are you sure you want to mark this ticket as resolved?
+                </p>
+
+                <div className="p-3 bg-gray-50 rounded-md">
+                  <p className="text-sm font-medium">{confirmResolve.subject}</p>
+                  <p className="text-xs text-gray-500">#{confirmResolve.ticket_number} • {confirmResolve.customer_email}</p>
+                  {confirmResolve.assigned_to_email && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <UserCheck className="h-3 w-3 text-blue-600" />
+                      <span className="text-xs text-blue-700">
+                        Assigned to: {confirmResolve.assigned_to_email}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <Button onClick={handleConfirmResolve} className="bg-green-600 hover:bg-green-700">
+                    Mark as Resolved
+                  </Button>
+                  <Button variant="outline" onClick={() => setConfirmResolve(null)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

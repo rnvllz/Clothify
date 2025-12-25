@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { customerService, supportTicketService } from '../../api/api';
-import { Trash2, AlertTriangle, Eye, MessageSquare, UserX, Users } from 'lucide-react';
+import { customerService, supportTicketService, orderService } from '../../api/api';
+import { supabase } from '../../api/api';
+import { AlertTriangle, Eye, MessageSquare, UserX, Users, RefreshCw, CheckCircle, XCircle, Shield, UserCheck } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import toast from 'react-hot-toast';
 
 interface Customer {
   user_id: string;
@@ -11,12 +17,13 @@ interface Customer {
   email_confirmed_at: string | null;
   role: string;
   role_assigned_at: string | null;
+  is_placeholder?: boolean;
 }
 
 interface SupportTicket {
   id: number;
   ticket_number: string;
-  customer_id: string;
+  customer_id: string | null;
   subject: string;
   description: string;
   status: 'open' | 'in-progress' | 'waiting-for-customer' | 'resolved' | 'closed';
@@ -38,19 +45,44 @@ const Customers: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [customerDetails, setCustomerDetails] = useState<{
+    customer: Customer | null;
+    orders: any[];
+    tickets: any[];
+  } | null>(null);
+
+  // Ticket modal states
+  const [ticketDetails, setTicketDetails] = useState<{
+    ticket: SupportTicket | null;
+    responses: any[];
+  } | null>(null);
+  const [respondModal, setRespondModal] = useState<{
+    ticket: SupportTicket | null;
+    response: string;
+  } | null>(null);
+  const [confirmResolve, setConfirmResolve] = useState<SupportTicket | null>(null);
+  const [assignModal, setAssignModal] = useState<{
+    ticket: SupportTicket | null;
+    assigneeId: string;
+  } | null>(null);
+  const [employees, setEmployees] = useState<any[]>([]);
 
   useEffect(() => {
     fetchCustomers();
     fetchSupportTickets();
+    fetchEmployees();
   }, []);
 
   const fetchCustomers = async () => {
     try {
       setLoading(true);
       console.log('🔍 Fetching customers from support tickets...');
-      const customersData = await customerService.getAll();
+      const customersData = await customerService.getAllFromTickets();
       console.log('✅ Customers fetched:', customersData);
-      setCustomers(customersData);
+      // Only show customers in the customer directory
+      const filteredCustomers = customersData.filter(user => user.role === 'customer');
+      console.log('✅ Filtered to customers only:', filteredCustomers);
+      setCustomers(filteredCustomers);
     } catch (err) {
       console.error('❌ Error fetching customers:', err);
       setError('Failed to load customers');
@@ -65,181 +97,341 @@ const Customers: React.FC = () => {
       const ticketsData = await supportTicketService.getAll();
       console.log('✅ Support tickets fetched:', ticketsData);
       setSupportTickets(ticketsData || []);
+
+      // Update any open modals with the latest ticket data
+      if (respondModal?.ticket) {
+        const updatedTicket = (ticketsData || []).find(t => t.id === respondModal.ticket!.id);
+        if (updatedTicket) {
+          setRespondModal(prev => prev ? { ...prev, ticket: updatedTicket } : null);
+        }
+      }
+
+      if (assignModal?.ticket) {
+        const updatedTicket = (ticketsData || []).find(t => t.id === assignModal.ticket!.id);
+        if (updatedTicket) {
+          setAssignModal(prev => prev ? { ...prev, ticket: updatedTicket } : null);
+        }
+      }
+
+      if (confirmResolve) {
+        const updatedTicket = (ticketsData || []).find(t => t.id === confirmResolve.id);
+        if (updatedTicket) {
+          setConfirmResolve(updatedTicket);
+        }
+      }
+
+      if (ticketDetails?.ticket) {
+        const updatedTicket = (ticketsData || []).find(t => t.id === ticketDetails.ticket!.id);
+        if (updatedTicket) {
+          setTicketDetails(prev => prev ? { ...prev, ticket: updatedTicket } : null);
+        }
+      }
     } catch (err) {
       console.error('❌ Error fetching support tickets:', err);
       setSupportTickets([]);
     }
   };
 
-  const getCustomerStatus = (lastSignIn: string | null, emailConfirmed: string | null) => {
-    if (!emailConfirmed) {
-      return { status: 'Unverified', className: 'px-2 py-1 bg-yellow-200 text-yellow-800 rounded-full text-sm' };
-    }
-    if (!lastSignIn) {
-      return { status: 'Never Signed In', className: 'px-2 py-1 bg-gray-200 text-gray-800 rounded-full text-sm' };
-    }
-    return { status: 'Active', className: 'px-2 py-1 bg-green-200 text-green-800 rounded-full text-sm' };
-  };
-
-  const getTicketStatusClass = (status: string) => {
-    switch (status) {
-      case 'open':
-        return 'px-2 py-1 bg-red-200 text-red-800 rounded-full text-sm';
-      case 'in-progress':
-        return 'px-2 py-1 bg-yellow-200 text-yellow-800 rounded-full text-sm';
-      case 'resolved':
-        return 'px-2 py-1 bg-green-200 text-green-800 rounded-full text-sm';
-      default:
-        return 'px-2 py-1 bg-gray-200 text-gray-800 rounded-full text-sm';
+  const fetchEmployees = async () => {
+    try {
+      console.log('🔍 Fetching employees...');
+      const allUsers = await customerService.getAllUsers();
+      console.log('All users:', allUsers);
+      const employeesData = allUsers.filter(user => user.role === 'employee');
+      console.log('✅ Employees fetched:', employeesData);
+      console.log('Employee count:', employeesData.length);
+      setEmployees(employeesData);
+    } catch (err) {
+      console.error('❌ Error fetching employees:', err);
+      setEmployees([]);
     }
   };
 
-  const getPriorityClass = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium';
-      case 'medium':
-        return 'px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-medium';
-      case 'low':
-        return 'px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium';
-      default:
-        return 'px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium';
-    }
-  };
+  const handleViewCustomer = async (customerId: string, customerEmail: string) => {
+    // Check if this is a placeholder user (email-based ID)
+    const isPlaceholder = customerId.startsWith('email_');
 
-  const handleDeleteCustomer = async (customerId: string, customerEmail: string) => {
-    if (!window.confirm(`Are you sure you want to delete all tickets for ${customerEmail}? This action cannot be undone.`)) {
+    if (isPlaceholder) {
+      // For placeholder users, show limited information from tickets
+      try {
+        const customerTickets = await supportTicketService.getTicketsByEmail(customerEmail);
+
+        setCustomerDetails({
+          customer: {
+            user_id: customerId,
+            email: customerEmail,
+            user_created_at: customerTickets[0]?.created_at || new Date().toISOString(),
+            customer_name: undefined,
+            last_sign_in_at: null,
+            email_confirmed_at: null,
+            role: 'customer',
+            role_assigned_at: null,
+            is_placeholder: true
+          },
+          orders: [], // No orders available for placeholder users
+          tickets: customerTickets
+        });
+      } catch (error) {
+        console.error('Error fetching customer ticket data:', error);
+        alert('Failed to load customer ticket information');
+      }
+      return;
+    }
+
+    // Validate that customerId is a valid UUID for real users
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(customerId)) {
+      alert(`Cannot view customer details: Invalid customer ID format (${customerId}).`);
       return;
     }
 
     try {
+      const customerDetails = await customerService.getById(customerId);
+      const customerOrders = await orderService.getByCustomerEmail(customerEmail);
+      const customerTickets = await supportTicketService.getTicketsByEmail(customerEmail);
+
+      setCustomerDetails({
+        customer: customerDetails,
+        orders: customerOrders,
+        tickets: customerTickets
+      });
+    } catch (error) {
+      console.error('Error fetching customer details:', error);
+      alert('Failed to load customer details');
+    }
+  };
+
+  const handleRespondToTicket = (ticket: SupportTicket) => {
+    setRespondModal({
+      ticket,
+      response: ''
+    });
+  };
+
+  const handleMarkResolved = (ticket: SupportTicket) => {
+    setConfirmResolve(ticket);
+  };
+
+  const handleAssignTicket = (ticket: SupportTicket) => {
+    // Refresh employees list when opening assign modal
+    fetchEmployees();
+    setAssignModal({
+      ticket,
+      assigneeId: ''
+    });
+  };
+
+  const handleSubmitAssignment = async () => {
+    if (!assignModal || !assignModal.assigneeId) return;
+
+    try {
+      // Find the selected employee
+      const selectedEmployee = employees.find(emp => emp.user_id === assignModal.assigneeId);
+      if (!selectedEmployee) {
+        toast.error('Selected employee not found');
+        return;
+      }
+
+      console.log(`Assigning ticket ${assignModal.ticket?.id} to employee ${selectedEmployee.email}`);
+
+      // Call the API to assign the ticket
+      await supportTicketService.assignTicket(assignModal.ticket!.id, assignModal.assigneeId);
+
+      setAssignModal(null);
+      toast.success(`Ticket assigned to ${selectedEmployee.customer_name || selectedEmployee.email || 'employee'}`);
+      fetchSupportTickets(); // Refresh tickets
+    } catch (error) {
+      console.error('Error assigning ticket:', error);
+      toast.error('Failed to assign ticket');
+    }
+  };
+
+  const handleSubmitResponse = async () => {
+    if (!respondModal || !respondModal.response.trim()) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      await supportTicketService.addResponse({
+        ticket_id: respondModal.ticket!.id,
+        responder_id: user.id,
+        response_text: respondModal.response,
+        is_internal: false
+      });
+
+      setRespondModal(null);
+      toast.success('Response added successfully!');
+      fetchSupportTickets(); // Refresh tickets
+    } catch (error) {
+      console.error('Error adding response:', error);
+      toast.error('Failed to add response');
+    }
+  };
+
+  const handleConfirmResolve = async () => {
+    if (!confirmResolve) return;
+
+    try {
+      await supportTicketService.resolveTicket(confirmResolve.id);
+      setConfirmResolve(null);
+      toast.success('Ticket marked as resolved!');
+      fetchSupportTickets(); // Refresh tickets
+    } catch (error) {
+      console.error('Error resolving ticket:', error);
+      toast.error('Failed to resolve ticket');
+    }
+  };
+
+  const handleDeleteCustomer = async (customerId: string, customerEmail: string) => {
+    if (!confirm(`Are you sure you want to delete customer ${customerEmail}? This action cannot be undone.`)) return;
+
+    try {
       await customerService.deleteCustomer(customerId);
-      alert(`All tickets for ${customerEmail} have been deleted.`);
-      setCustomers(customers.filter(c => c.user_id !== customerId));
-      setSupportTickets(supportTickets.filter(t => t.customer_email !== customerEmail && t.customer_id !== customerId));
+      toast.success('Customer deleted successfully!');
       setDeleteConfirm(null);
-    } catch (err) {
-      console.error('Error deleting customer:', err);
-      alert('Failed to delete customer. Please try again.');
+      fetchCustomers(); // Refresh the list
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      toast.error('Failed to delete customer');
+    }
+  };
+
+  const handleViewTicketDetails = async (ticketId: number, _ticketSubject: string) => {
+    try {
+      const responses = await supportTicketService.getResponses(ticketId);
+      const ticket = supportTickets.find(t => t.id === ticketId);
+      setTicketDetails({
+        ticket: ticket || null,
+        responses: responses
+      });
+    } catch (error) {
+      console.error('Error fetching ticket details:', error);
+      toast.error('Failed to load ticket details');
     }
   };
 
   if (loading) {
     return (
-      <div>
-        <h1 className="text-3xl font-bold mb-6">Customers</h1>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <p>Loading customers...</p>
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-6">
+          <Users className="w-6 h-6 sm:w-8 sm:h-8" />
+          <h1 className="text-2xl sm:text-3xl font-bold">Customer Management</h1>
         </div>
+        <Card>
+          <CardContent className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+              <p className="text-gray-600 mt-2">Loading customers...</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div>
-        <h1 className="text-3xl font-bold mb-6">Customers</h1>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <p className="text-red-600">{error}</p>
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-6">
+          <Users className="w-6 h-6 sm:w-8 sm:h-8" />
+          <h1 className="text-2xl sm:text-3xl font-bold">Customer Management</h1>
         </div>
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center">
+              <p className="text-red-600">{error}</p>
+              <Button onClick={() => { fetchCustomers(); fetchSupportTickets(); }} className="mt-4">
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-6">
-        <Users className="w-6 h-6 sm:w-8 sm:h-8" />
-        <h1 className="text-2xl sm:text-3xl font-bold">Customer Management</h1>
-      </div>
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <p className="text-gray-600 mb-6">Manage your customers, view their information, and handle support tickets.</p>
-
-        <div className="flex gap-4 mb-6">
-          <button
-            onClick={() => {
-              fetchCustomers();
-              fetchSupportTickets();
-            }}
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
-            Refresh Data
-          </button>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <Users className="w-6 h-6 sm:w-8 sm:h-8" />
+          <h1 className="text-2xl sm:text-3xl font-bold">Customer Management</h1>
         </div>
+        <Button onClick={() => { fetchCustomers(); fetchSupportTickets(); }} variant="outline" className="flex items-center gap-2">
+          <RefreshCw className="w-4 h-4" />
+          Refresh
+        </Button>
+      </div>
 
-        {/* Customer List */}
-        <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
-          <Eye className="h-6 w-6" />
-          Customer List
-        </h2>
-
-        {customers.length === 0 ? (
-          <p className="text-gray-600 mb-8">No customers found.</p>
-        ) : (
-          <div className="overflow-x-auto mb-8">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left p-3">Email</th>
-                  <th className="text-left p-3">Role</th>
-                  <th className="text-left p-3">Status</th>
-                  <th className="text-left p-3">Joined</th>
-                  <th className="text-left p-3">Last Sign In</th>
-                  <th className="text-left p-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+      <>
+        {/* Customers Section */}
+        <Card className="mb-6">
+          <CardHeader className="pb-3 sm:pb-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Users className="w-4 h-4 sm:w-5 sm:h-5" />
+              Customer Directory
+            </CardTitle>
+            <CardDescription className="text-sm">Manage customer accounts and view their information</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6">
+            {customers.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>No customers found</p>
+                <p className="text-sm">Customer data will appear here</p>
+              </div>
+            ) : (
+              <div className="space-y-3 sm:space-y-4">
                 {customers.map((customer) => {
-                  const statusInfo = getCustomerStatus(customer.last_sign_in_at, customer.email_confirmed_at);
                   return (
-                    <tr key={customer.user_id} className="border-b hover:bg-gray-50">
-                      <td className="p-3">{customer.email}</td>
-                      <td className="p-3">
-                        <span className={`px-2 py-1 rounded-full text-sm ${
-                          customer.role === 'admin' ? 'bg-purple-200 text-purple-800' :
-                          customer.role === 'employee' ? 'bg-blue-200 text-blue-800' :
-                          'bg-gray-200 text-gray-800'
-                        }`}>
-                          {customer.role}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <span className={statusInfo.className}>
-                          {statusInfo.status}
-                        </span>
-                      </td>
-                      <td className="p-3">{new Date(customer.user_created_at).toLocaleDateString()}</td>
-                      <td className="p-3">
-                        {customer.last_sign_in_at
-                          ? new Date(customer.last_sign_in_at).toLocaleDateString()
-                          : 'Never'
-                        }
-                      </td>
-                      <td className="p-3">
-                        <div className="flex gap-2">
-                          <button
-                            className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-                            onClick={() => alert(`View details for: ${customer.email}`)}
-                          >
-                            <Eye className="h-4 w-4 inline mr-1" />
-                            View
-                          </button>
-                          <button
-                            className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
-                            onClick={() => setDeleteConfirm(customer.user_id)}
-                          >
-                            <UserX className="h-4 w-4 inline mr-1" />
-                            Delete
-                          </button>
+                    <div key={customer.user_id} className="border rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow">
+                      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                            <h3 className="font-semibold text-sm sm:text-base truncate">{customer.email}</h3>
+                            <Badge variant={
+                              customer.role === 'admin' ? 'destructive' :
+                              customer.role === 'employee' ? 'default' :
+                              'outline'
+                            }>
+                              {customer.role}
+                            </Badge>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <Badge variant={
+                              !customer.email_confirmed_at ? 'secondary' :
+                              !customer.last_sign_in_at ? 'outline' :
+                              'default'
+                            }>
+                              {!customer.email_confirmed_at ? 'Unverified' :
+                               !customer.last_sign_in_at ? 'Never Signed In' :
+                               'Active'}
+                            </Badge>
+                          </div>
+                          <div className="text-xs sm:text-sm text-gray-600 space-y-1">
+                            <p>Joined: {new Date(customer.user_created_at).toLocaleDateString()}</p>
+                            <p>Last sign in: {customer.last_sign_in_at ? new Date(customer.last_sign_in_at).toLocaleDateString() : 'Never'}</p>
+                          </div>
                         </div>
-                      </td>
-                    </tr>
+                        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                          <Button size="sm" variant="outline" onClick={() => handleViewCustomer(customer.user_id, customer.email)}>
+                            <Eye className="w-4 h-4 mr-1" />
+                            View
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => setDeleteConfirm(customer.user_id)}>
+                            <UserX className="w-4 h-4 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-        )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Delete Confirmation Modal */}
         {deleteConfirm && (
@@ -281,94 +473,629 @@ const Customers: React.FC = () => {
           </div>
         )}
 
-        {/* Support Tickets Section */}
-        <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
-          <MessageSquare className="h-6 w-6" />
-          Support Tickets
-        </h2>
+        {/* Customer Details Modal */}
+        {customerDetails && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <Users className="h-6 w-6 text-blue-500" />
+                    <h3 className="text-xl font-semibold">Customer Details</h3>
+                  </div>
+                  <button
+                    onClick={() => setCustomerDetails(null)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <XCircle className="h-6 w-6" />
+                  </button>
+                </div>
 
-        {supportTickets.length === 0 ? (
-          <p className="text-gray-600">No support tickets found.</p>
-        ) : (
-          <div className="space-y-4">
-            {supportTickets.map((ticket) => (
-              <div key={ticket.id} className="border rounded-lg p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg">{ticket.subject}</h3>
-                    <p className="text-sm text-gray-600">
-                      Ticket #{ticket.ticket_number} • From: {ticket.customer_email}
-                    </p>
-                    {ticket.category_name && (
-                      <p className="text-sm text-gray-500">Category: {ticket.category_name}</p>
+                {customerDetails.customer && (
+                  <div className="space-y-6">
+                    {/* Customer Info */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Email</label>
+                          <p className="text-sm font-medium">{customerDetails.customer.email}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Name</label>
+                          <p className="text-sm">{customerDetails.customer.customer_name || 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Role</label>
+                          <Badge variant={
+                            customerDetails.customer.role === 'admin' ? 'destructive' :
+                            customerDetails.customer.role === 'employee' ? 'default' :
+                            'outline'
+                          }>
+                            {customerDetails.customer.role}
+                          </Badge>
+                        </div>
+                        {customerDetails.customer.is_placeholder && (
+                          <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                            <p className="text-sm text-yellow-800">
+                              <strong>Limited Information:</strong> This customer was identified from support tickets but does not have a registered user account. Some details may not be available.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">First Seen</label>
+                          <p className="text-sm">{new Date(customerDetails.customer.user_created_at).toLocaleDateString()}</p>
+                        </div>
+                        {!customerDetails.customer.is_placeholder && (
+                          <>
+                            <div>
+                              <label className="text-sm font-medium text-gray-500">Last Sign In</label>
+                              <p className="text-sm">{customerDetails.customer.last_sign_in_at ? new Date(customerDetails.customer.last_sign_in_at).toLocaleDateString() : 'Never'}</p>
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-gray-500">Email Confirmed</label>
+                              <Badge variant={customerDetails.customer.email_confirmed_at ? 'default' : 'secondary'}>
+                                {customerDetails.customer.email_confirmed_at ? 'Yes' : 'No'}
+                              </Badge>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">{customerDetails.orders.length}</div>
+                        <div className="text-sm text-gray-500">Orders</div>
+                        {customerDetails.customer.is_placeholder && (
+                          <div className="text-xs text-gray-400 mt-1">Not available</div>
+                        )}
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{customerDetails.tickets.length}</div>
+                        <div className="text-sm text-gray-500">Support Tickets</div>
+                      </div>
+                    </div>
+
+                    {/* Recent Orders */}
+                    {!customerDetails.customer.is_placeholder && customerDetails.orders.length > 0 && (
+                      <div>
+                        <h4 className="font-medium mb-3">Recent Orders</h4>
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {customerDetails.orders.slice(0, 5).map((order, index) => (
+                            <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                              <span className="text-sm">Order #{order.id}</span>
+                              <span className="text-sm font-medium">${order.total_amount}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {customerDetails.customer.is_placeholder && (
+                      <div>
+                        <h4 className="font-medium mb-3">Order Information</h4>
+                        <div className="bg-gray-50 p-3 rounded">
+                          <p className="text-sm text-gray-600">Order history is not available for customers without registered accounts.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recent Tickets */}
+                    {customerDetails.tickets.length > 0 && (
+                      <div>
+                        <h4 className="font-medium mb-3">Recent Support Tickets</h4>
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {customerDetails.tickets.slice(0, 5).map((ticket, index) => (
+                            <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                              <span className="text-sm truncate">{ticket.subject}</span>
+                              <Badge variant={
+                                ticket.status === 'open' ? 'destructive' :
+                                ticket.status === 'in_progress' ? 'default' :
+                                ticket.status === 'resolved' ? 'secondary' :
+                                'outline'
+                              } className="text-xs">
+                                {ticket.status.replace('-', ' ')}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
-                  <div className="flex gap-2">
-                    <span className={getPriorityClass(ticket.priority)}>
-                      {ticket.priority.toUpperCase()}
-                    </span>
-                    <span className={getTicketStatusClass(ticket.status)}>
-                      {ticket.status.replace('-', ' ').toUpperCase()}
-                    </span>
-                  </div>
-                </div>
-
-                <p className="text-gray-700 mb-3">{ticket.description}</p>
-
-                <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
-                  <span>Created: {new Date(ticket.created_at).toLocaleDateString()}</span>
-                  <span>Last updated: {new Date(ticket.updated_at).toLocaleDateString()}</span>
-                </div>
-
-                {ticket.assigned_to_email && (
-                  <div className="text-sm text-gray-600 mb-3">
-                    Assigned to: {ticket.assigned_to_email}
-                  </div>
                 )}
-
-                <div className="flex gap-2">
-                  <button
-                    className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-                    onClick={() => alert(`Respond to ticket: ${ticket.subject}`)}
-                  >
-                    Respond
-                  </button>
-                  <button
-                    className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
-                    onClick={() => alert(`Mark ticket as resolved: ${ticket.subject}`)}
-                  >
-                    Mark Resolved
-                  </button>
-                  <button
-                    className="px-3 py-1 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600"
-                    onClick={() => alert(`Assign ticket: ${ticket.subject}`)}
-                  >
-                    Assign
-                  </button>
-                  <button
-                    className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600"
-                    onClick={() => alert(`View full ticket details: ${ticket.subject}`)}
-                  >
-                    View Details
-                  </button>
-                </div>
               </div>
-            ))}
+            </div>
           </div>
         )}
 
+        {/* Support Tickets Section */}
+        <Card>
+          <CardHeader className="pb-3 sm:pb-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
+              Support Tickets
+            </CardTitle>
+            <CardDescription className="text-sm">View and manage customer support tickets</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6">
+            {supportTickets.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>No support tickets found</p>
+                <p className="text-sm">Support tickets will appear here</p>
+              </div>
+            ) : (
+              <div className="space-y-3 sm:space-y-4">
+                {supportTickets.map((ticket) => (
+                  <div key={ticket.id} className="border rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow">
+                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                          <h3 className="font-semibold text-sm sm:text-base truncate">{ticket.subject}</h3>
+                          <Badge variant={
+                            ticket.status === 'open' ? 'destructive' :
+                            ticket.status === 'in-progress' ? 'default' :
+                            ticket.status === 'resolved' ? 'secondary' :
+                            'outline'
+                          }>
+                            {ticket.status.replace('-', ' ')}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {ticket.priority.toUpperCase()}
+                          </Badge>
+                        </div>
+                        <p className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2">{ticket.description}</p>
+                        <div className="text-xs sm:text-sm text-gray-600 space-y-1">
+                          <p>Ticket #{ticket.ticket_number} • From: {ticket.customer_email}</p>
+                          {ticket.category_name && <p>Category: {ticket.category_name}</p>}
+                          <p>Created: {new Date(ticket.created_at).toLocaleDateString()}</p>
+                        </div>
+                        {/* Assignee Information */}
+                        {ticket.assigned_to_email ? (
+                          <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                            <div className="flex items-center gap-2">
+                              <UserCheck className="h-4 w-4 text-blue-600" />
+                              <span className="text-xs font-medium text-blue-900">
+                                Assigned to: {ticket.assigned_to_email}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded-md">
+                            <div className="flex items-center gap-2">
+                              <AlertTriangle className="h-4 w-4 text-orange-600" />
+                              <span className="text-xs font-medium text-orange-900">
+                                Unassigned - Available for assignment
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                        <Button size="sm" variant="outline" onClick={() => handleRespondToTicket(ticket)}>
+                          <MessageSquare className="w-4 h-4 mr-1" />
+                          Respond
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleMarkResolved(ticket)}>
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          Resolve
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleAssignTicket(ticket)}>
+                          <UserCheck className="w-4 h-4 mr-1" />
+                          Assign
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleViewTicketDetails(ticket.id, ticket.subject)}>
+                          <Eye className="w-4 h-4 mr-1" />
+                          Details
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Admin Actions Summary */}
-        <div className="bg-blue-50 p-4 rounded-lg mt-6">
-          <h3 className="font-medium mb-2 text-blue-800">Admin Capabilities</h3>
-          <ul className="text-sm text-blue-700 space-y-1">
-            <li>• View all customer accounts and activity</li>
-            <li>• Access and manage all support tickets</li>
-            <li>• Delete customer accounts (with confirmation)</li>
-            <li>• Assign tickets to employees</li>
-            <li>• Override ticket status and priority</li>
-          </ul>
+        <Card className="mt-6">
+          <CardHeader className="pb-3 sm:pb-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Shield className="w-4 h-4 sm:w-5 sm:h-5" />
+              Admin Capabilities
+            </CardTitle>
+            <CardDescription className="text-sm">Overview of administrative privileges and actions</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6">
+            <ul className="text-sm text-gray-700 space-y-2">
+              <li className="flex items-center gap-2">
+                <Eye className="w-4 h-4 text-blue-500" />
+                View all customer accounts and activity
+              </li>
+              <li className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-blue-500" />
+                Access and manage all support tickets
+              </li>
+              <li className="flex items-center gap-2">
+                <UserX className="w-4 h-4 text-red-500" />
+                Delete customer accounts (with confirmation)
+              </li>
+              <li className="flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-blue-500" />
+                Assign tickets to employees
+              </li>
+              <li className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-blue-500" />
+                Override ticket status and priority
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+      </>
+
+      {/* Ticket Details Modal */}
+      {ticketDetails ? (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <MessageSquare className="h-6 w-6 text-blue-500" />
+                  <h3 className="text-xl font-semibold">Ticket Details</h3>
+                </div>
+                <button
+                  onClick={() => setTicketDetails(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XCircle className="h-6 w-6" />
+                </button>
+              </div>
+
+              {ticketDetails.ticket && (
+                <div className="space-y-6">
+                  {/* Ticket Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Subject</label>
+                        <p className="text-sm font-medium">{ticketDetails.ticket.subject}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Ticket Number</label>
+                        <p className="text-sm">#{ticketDetails.ticket.ticket_number}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Customer</label>
+                        <p className="text-sm">{ticketDetails.ticket.customer_email}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Status</label>
+                        <Badge variant={
+                          ticketDetails.ticket.status === 'open' ? 'destructive' :
+                          ticketDetails.ticket.status === 'in-progress' ? 'default' :
+                          ticketDetails.ticket.status === 'resolved' ? 'secondary' :
+                          'outline'
+                        }>
+                          {ticketDetails.ticket.status.replace('-', ' ')}
+                        </Badge>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Priority</label>
+                        <Badge variant="outline" className="text-xs">
+                          {ticketDetails.ticket.priority.toUpperCase()}
+                        </Badge>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Created</label>
+                        <p className="text-sm">{new Date(ticketDetails.ticket.created_at).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Assignee Information */}
+                  <div className="border-t pt-4">
+                    <label className="text-sm font-medium text-gray-500 block mb-3">Assignment Details</label>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      {ticketDetails.ticket.assigned_to ? (
+                        <div className="flex items-center gap-3">
+                          <UserCheck className="h-5 w-5 text-blue-600" />
+                          <div>
+                            <p className="text-sm font-medium text-blue-900">
+                              Assigned to: {ticketDetails.ticket.assigned_to_email || 'Unknown Employee'}
+                            </p>
+                            <p className="text-xs text-blue-700">
+                              This ticket is currently being handled by a support team member
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <AlertTriangle className="h-5 w-5 text-orange-600" />
+                          <div>
+                            <p className="text-sm font-medium text-orange-900">
+                              Unassigned Ticket
+                            </p>
+                            <p className="text-xs text-orange-700">
+                              This ticket is available for assignment and needs attention
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Description</label>
+                    <div className="mt-1 p-3 bg-gray-50 rounded-md">
+                      <p className="text-sm whitespace-pre-wrap">{ticketDetails.ticket.description}</p>
+                    </div>
+                  </div>
+
+                  {/* Responses */}
+                  <div>
+                    <h4 className="font-medium mb-3">Responses ({ticketDetails.responses.length})</h4>
+                    {ticketDetails.responses.length > 0 ? (
+                      <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {ticketDetails.responses.map((response, index) => (
+                          <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="font-medium text-sm">{response.responder_email || 'Unknown'}</span>
+                              <span className="text-xs text-gray-500">{new Date(response.created_at).toLocaleString()}</span>
+                            </div>
+                            <p className="text-sm whitespace-pre-wrap">{response.response_text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">No responses yet</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      ) : null}
+
+      {/* Respond to Ticket Modal */}
+      {respondModal ? (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <MessageSquare className="h-6 w-6 text-blue-500" />
+                  <h3 className="text-xl font-semibold">Respond to Ticket</h3>
+                </div>
+                <button
+                  onClick={() => setRespondModal(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XCircle className="h-6 w-6" />
+                </button>
+              </div>
+
+              {respondModal.ticket && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Ticket</label>
+                    <p className="text-sm font-medium">{respondModal.ticket.subject}</p>
+                    <p className="text-xs text-gray-500">#{respondModal.ticket.ticket_number} • {respondModal.ticket.customer_email}</p>
+                  </div>
+
+                  {/* Assignee Information */}
+                  {respondModal.ticket.assigned_to_email ? (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <div className="flex items-center gap-2">
+                        <UserCheck className="h-4 w-4 text-blue-600" />
+                        <div>
+                          <p className="text-xs font-medium text-blue-900">
+                            Currently assigned to: {respondModal.ticket.assigned_to_email}
+                          </p>
+                          <p className="text-xs text-blue-700">
+                            Coordinate with this team member if needed
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-orange-50 border border-orange-200 rounded-md">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-orange-600" />
+                        <div>
+                          <p className="text-xs font-medium text-orange-900">
+                            Unassigned ticket - Consider assigning it first
+                          </p>
+                          <p className="text-xs text-orange-700">
+                            You can assign this ticket to yourself after responding
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 block mb-2">Your Response</label>
+                    <textarea
+                      className="w-full p-3 border rounded-md resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      rows={6}
+                      placeholder="Type your response here..."
+                      value={respondModal.response}
+                      onChange={(e) => setRespondModal({...respondModal, response: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <Button onClick={handleSubmitResponse} disabled={!respondModal.response.trim()}>
+                      Send Response
+                    </Button>
+                    <Button variant="outline" onClick={() => setRespondModal(null)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Confirm Resolve Modal */}
+      {confirmResolve ? (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <CheckCircle className="h-6 w-6 text-green-500" />
+                <h3 className="text-xl font-semibold">Confirm Resolution</h3>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Are you sure you want to mark this ticket as resolved?
+                </p>
+
+                <div className="p-3 bg-gray-50 rounded-md">
+                  <p className="text-sm font-medium">{confirmResolve.subject}</p>
+                  <p className="text-xs text-gray-500">#{confirmResolve.ticket_number} • {confirmResolve.customer_email}</p>
+                  {confirmResolve.assigned_to_email && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <UserCheck className="h-3 w-3 text-blue-600" />
+                      <span className="text-xs text-blue-700">
+                        Assigned to: {confirmResolve.assigned_to_email}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <Button onClick={handleConfirmResolve} className="bg-green-600 hover:bg-green-700">
+                    Mark as Resolved
+                  </Button>
+                  <Button variant="outline" onClick={() => setConfirmResolve(null)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Assign Ticket Modal */}
+      {assignModal ? (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <UserCheck className="h-6 w-6 text-blue-500" />
+                  <h3 className="text-xl font-semibold">Assign Ticket</h3>
+                </div>
+                <button
+                  onClick={() => setAssignModal(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XCircle className="h-6 w-6" />
+                </button>
+              </div>
+
+              {assignModal.ticket && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Ticket</label>
+                    <p className="text-sm font-medium">{assignModal.ticket.subject}</p>
+                    <p className="text-xs text-gray-500">#{assignModal.ticket.ticket_number} • {assignModal.ticket.customer_email}</p>
+                  </div>
+
+                  {/* Current Assignment Status */}
+                  {assignModal.ticket.assigned_to_email ? (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <div className="flex items-center gap-2">
+                        <UserCheck className="h-4 w-4 text-blue-600" />
+                        <div>
+                          <p className="text-xs font-medium text-blue-900">
+                            Currently assigned to: {assignModal.ticket.assigned_to_email}
+                          </p>
+                          <p className="text-xs text-blue-700">
+                            This will reassign the ticket to a different user
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-orange-50 border border-orange-200 rounded-md">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-orange-600" />
+                        <div>
+                          <p className="text-xs font-medium text-orange-900">
+                            Currently unassigned
+                          </p>
+                          <p className="text-xs text-orange-700">
+                            Assign this ticket to a team member
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 block mb-2">
+                      Assign to Employee
+                    </label>
+                    <Select
+                      value={assignModal.assigneeId}
+                      onValueChange={(value) => setAssignModal({...assignModal, assigneeId: value})}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select an employee..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {employees.length === 0 ? (
+                          <div className="p-2 text-sm text-gray-500 text-center">
+                            No employees available
+                          </div>
+                        ) : (
+                          employees.map((employee) => (
+                            <SelectItem key={employee.user_id} value={employee.user_id}>
+                              <div className="flex flex-col">
+                                <span className="font-medium">
+                                  {employee.customer_name || employee.email || `User ${employee.user_id.slice(0, 8)}`}
+                                </span>
+                                {employee.email && employee.customer_name && (
+                                  <span className="text-xs text-gray-500">{employee.email}</span>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Select an employee from the list to assign this ticket
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <Button onClick={handleSubmitAssignment} disabled={!assignModal.assigneeId}>
+                      Assign Ticket
+                    </Button>
+                    <Button variant="outline" onClick={() => setAssignModal(null)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };
