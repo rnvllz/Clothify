@@ -12,7 +12,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Home, ShoppingCart, Package, Users, LogOut, ClipboardList, Settings, Info } from "lucide-react";
+import { Home, ShoppingCart, Package, Users, LogOut, ClipboardList, Settings, Info, AlertTriangle } from "lucide-react";
 import Logo from "@/assets/logo.svg";
 import { authService } from "../api/api";
 import toast from "react-hot-toast";
@@ -27,6 +27,7 @@ const mainLinks = [
 
 const otherLinks = [
   { name: "Settings", path: "/employee/settings", icon: Settings },
+  { name: "Support", path: "/employee/support", icon: AlertTriangle },
   { name: "Information", path: "/employee/information", icon: Info },
 ];
 

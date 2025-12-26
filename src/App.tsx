@@ -43,6 +43,7 @@ import EmployeeCustomers from "./pages/employees/EmployeeCustomers";
 import Orders from "./pages/admin/Orders";
 import EmployeeOrders from "./pages/employees/EmployeeOrders";
 import EmployeeSettings from "./pages/employees/EmployeeSettings";
+import EmployeeSupport from "./pages/employees/EmployeeSupport";
 import EmployeeInformation from "./pages/employees/EmployeeInformation";
 
 
@@ -120,6 +121,11 @@ const App: React.FC = () => {
             <Route path="information" element={
               <ProtectedRoute requiredRole="employee">
                 <EmployeeInformation />
+              </ProtectedRoute>
+            } />
+            <Route path="support" element={
+              <ProtectedRoute requiredRole="employee">
+                <EmployeeSupport />
               </ProtectedRoute>
             } />
             <Route path="guide" element={
