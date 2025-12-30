@@ -207,6 +207,8 @@ export interface SupportTicket {
   closed_at: string | null;
   assigned_to_email?: string;
   category_name?: string;
+  // Responses added by support staff or the customer
+  responses?: TicketResponse[];
 }
 
 export interface SupportTicketInsert {

@@ -730,11 +730,34 @@ export const supportTicketService = {
 
     if (error) throw error;
 
-    // Transform the data to match our interface
-    return (data || []).map(ticket => ({
+    const tickets = data || [];
+    if (tickets.length === 0) return [];
+
+    const ticketIds = tickets.map(t => t.id);
+    const { data: responses, error: responsesError } = await supabase
+      .from('ticket_responses')
+      .select('*, responder:responder_id(email)')
+      .in('ticket_id', ticketIds)
+      .order('created_at', { ascending: true });
+
+    const responsesByTicket: { [key: number]: any[] } = {};
+    if (!responsesError && responses) {
+      responses.forEach((r: any) => {
+        const resp = {
+          ...r,
+          responder_email: r.responder?.email || null
+        };
+        responsesByTicket[r.ticket_id] = responsesByTicket[r.ticket_id] || [];
+        responsesByTicket[r.ticket_id].push(resp);
+      });
+    }
+
+    // Transform the data to match our interface and attach responses
+    return tickets.map(ticket => ({
       ...ticket,
       customer_email: user.email,
-      category_name: ticket.support_ticket_categories?.name
+      category_name: ticket.support_ticket_categories?.name,
+      responses: responsesByTicket[ticket.id] || []
     }));
   },
 
@@ -751,10 +774,35 @@ export const supportTicketService = {
 
     if (error) throw error;
 
-    // Transform the data to match our interface
-    return (data || []).map(ticket => ({
+    const tickets = data || [];
+    if (tickets.length === 0) return [];
+
+    // Gather ticket ids and fetch responses (with responder email) in bulk
+    const ticketIds = tickets.map(t => t.id);
+
+    const { data: responses, error: responsesError } = await supabase
+      .from('ticket_responses')
+      .select('*, responder:responder_id(email)')
+      .in('ticket_id', ticketIds)
+      .order('created_at', { ascending: true });
+
+    const responsesByTicket: { [key: number]: any[] } = {};
+    if (!responsesError && responses) {
+      responses.forEach((r: any) => {
+        const resp = {
+          ...r,
+          responder_email: r.responder?.email || null
+        };
+        responsesByTicket[r.ticket_id] = responsesByTicket[r.ticket_id] || [];
+        responsesByTicket[r.ticket_id].push(resp);
+      });
+    }
+
+    // Transform the data to match our interface and attach responses
+    return tickets.map(ticket => ({
       ...ticket,
-      category_name: ticket.support_ticket_categories?.name
+      category_name: ticket.support_ticket_categories?.name,
+      responses: responsesByTicket[ticket.id] || []
     }));
   },
 

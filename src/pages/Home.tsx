@@ -10,13 +10,15 @@ import type { Product } from "../types/database";
 import Banner1 from "../assets/Banner/Hero-Banner-1.png";
 import Banner2 from "../assets/Banner/Hero-Banner-2.png";
 import Banner3 from "../assets/Banner/Hero-Banner-3.png";
+import Banner4 from "../assets/Banner/Hero-Banner-4.png";
+import Banner5 from "../assets/Banner/Hero-Banner-5.png";
 
 const Home: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Banner images array
-  const bannerImages = [Banner1, Banner2, Banner3];
+  const bannerImages = [Banner4, Banner5, Banner1, Banner2, Banner3];
 
   // Function to shuffle array
   const shuffleArray = <T,>(array: T[]): T[] => {
