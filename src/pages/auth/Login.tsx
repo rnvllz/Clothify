@@ -139,7 +139,7 @@ const Login: React.FC = () => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to send verification code");
         
-        toast.success("A verification code has been sent to your email.");
+        toast.success("A verification code has been sent to your email.", { id: "otp-sent" });
         setMfaRequired(true); // Show OTP input
       } catch (err: any) {
         console.error("OTP send error:", err);
