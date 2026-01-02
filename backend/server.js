@@ -50,7 +50,7 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ limit: '10kb' }));
 
-const OTP_DEBUG = true;
+const OTP_DEBUG = false;
 
 //EMAIL VERIFICATION
 
@@ -109,7 +109,7 @@ app.post("/api/send-code", async (req, res) => {
     } else {
       // Send OTP via Resend
       await resend.emails.send({
-        from: "no-reply@sandbox.resend.com",
+        from: "no-reply@karlix.me",
         to: email,
         subject: "Your Login Verification Code",
         html: `<p>Your verification code is <strong>${code}</strong>. It expires in 5 minutes.</p>`,
