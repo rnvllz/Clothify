@@ -4,14 +4,13 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const OTP_TTL_SECONDS = 300; // 5 minutes
-const OTP_DEBUG = false; // set true to log OTPs
+const OTP_DEBUG = false;     // set true to log OTPs instead of sending
 
 export async function POST(req: Request) {
   try {
     const { email } = await req.json();
     if (!email) return new Response(JSON.stringify({ error: "Missing email" }), { status: 400 });
 
-    // Generate OTP
     const code = crypto.randomInt(100000, 150000).toString();
 
     // Store OTP in KV with TTL
