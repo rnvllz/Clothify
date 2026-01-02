@@ -1,33 +1,24 @@
-import { Resend } from 'resend';
-import crypto from 'crypto';
-import { kv } from '@vercel/kv';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-const OTP_TTL_SECONDS = 300;
+import { kv } from "@vercel/kv";
 
 export async function POST(req: Request) {
   try {
-    const { email } = await req.json();
+    const { email, code } = await req.json();
+    if (!email || !code)
+      return new Response(JSON.stringify({ error: "Missing email or code" }), { status: 400 });
 
-    if (!email) {
-      return new Response(JSON.stringify({ error: 'Missing email' }), { status: 400 });
-    }
+    const storedCode = await kv.get(`otp:${email}`);
+    if (!storedCode)
+      return new Response(JSON.stringify({ error: "OTP expired or not found" }), { status: 400 });
 
-    const code = crypto.randomInt(100000, 999999).toString();
+    if (storedCode !== code)
+      return new Response(JSON.stringify({ error: "Invalid code" }), { status: 400 });
 
-    // STORE OTP in KV
-    await kv.set(`otp:${email}`, code, { ex: OTP_TTL_SECONDS });
+    // OTP is correct → delete it
+    await kv.del(`otp:${email}`);
 
-    await resend.emails.send({
-      from: 'Clothify <no-reply@karlix.me>',
-      to: [email],
-      subject: 'Your Login Verification Code',
-      html: `<p>Your verification code is <strong>${code}</strong>. It expires in 5 minutes.</p>`,
-    });
-
-    return new Response(JSON.stringify({ message: 'OTP sent' }), { status: 200 });
+    return new Response(JSON.stringify({ message: "OTP verified successfully" }), { status: 200 });
   } catch (err: any) {
     console.error(err);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: "Server error", message: err.message }), { status: 500 });
   }
 }
