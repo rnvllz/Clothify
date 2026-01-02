@@ -89,64 +89,64 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-app.post("https://clothify-rouge.vercel.app/api/send", async (req, res) => { ///api/send-code
-  try{
-    const { email } = req.body
-    if(!email) return res.status(400).json({ error: "Missing email" });
+// app.post("/api/send-code", async (req, res) => {
+//   try{
+//     const { email } = req.body
+//     if(!email) return res.status(400).json({ error: "Missing email" });
     
-    // Generate OTP
-    const code = crypto.randomInt(100000, 150000).toString(); // 6-digit
-    otpStore.set(email, { code, expiresAt: Date.now() + OTP_EXPIRATION_MS });
+//     // Generate OTP
+//     const code = crypto.randomInt(100000, 150000).toString(); // 6-digit
+//     otpStore.set(email, { code, expiresAt: Date.now() + OTP_EXPIRATION_MS });
 
-    if (OTP_DEBUG) {
-      console.log(`
-        ==============================
-        🔐 OTP DEBUG MODE
-        📧 Email: ${email}
-        🔢 Code: ${code}
-        ==============================
-      `);
-    } else {
-      // Send OTP via Resend
-      await resend.emails.send({
-        from: "no-reply@karlix.me",
-        to: email,
-        subject: "Your Login Verification Code",
-        html: `<p>Your verification code is <strong>${code}</strong>. It expires in 5 minutes.</p>`,
-      });
-    }
+//     if (OTP_DEBUG) {
+//       console.log(`
+//         ==============================
+//         🔐 OTP DEBUG MODE
+//         📧 Email: ${email}
+//         🔢 Code: ${code}
+//         ==============================
+//       `);
+//     } else {
+//       // Send OTP via Resend
+//       await resend.emails.send({
+//         from: "no-reply@karlix.me",
+//         to: email,
+//         subject: "Your Login Verification Code",
+//         html: `<p>Your verification code is <strong>${code}</strong>. It expires in 5 minutes.</p>`,
+//       });
+//     }
 
-    res.json({ message: "OTP sent to email"});
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error", message: err.message });
-  }
-});
+//     res.json({ message: "OTP sent to email"});
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: "Server error", message: err.message });
+//   }
+// });
 
-//VERIFY EMAIL CODE
-app.post("/api/verify", (req, res) => {
-  try {
-    const { email, code } = req.body;
-    if (!email || !code) return res.status(400).json({ error: "Missing email or code" });
+// //VERIFY EMAIL CODE
+// app.post("/api/verify", (req, res) => {
+//   try {
+//     const { email, code } = req.body;
+//     if (!email || !code) return res.status(400).json({ error: "Missing email or code" });
 
-    const record = otpStore.get(email);
-    if (!record) return res.status(400).json({ error: "OTP not found or expired" });
+//     const record = otpStore.get(email);
+//     if (!record) return res.status(400).json({ error: "OTP not found or expired" });
 
-    if (record.expiresAt < Date.now()) {
-      otpStore.delete(email);
-      return res.status(400).json({ error: "OTP expired" });
-    }
+//     if (record.expiresAt < Date.now()) {
+//       otpStore.delete(email);
+//       return res.status(400).json({ error: "OTP expired" });
+//     }
 
-    if (record.code !== code) return res.status(400).json({ error: "Invalid code" });
+//     if (record.code !== code) return res.status(400).json({ error: "Invalid code" });
 
-    // OTP valid, remove it
-    otpStore.delete(email);
-    res.json({ message: "OTP verified successfully" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error", message: err.message });
-  }
-});
+//     // OTP valid, remove it
+//     otpStore.delete(email);
+//     res.json({ message: "OTP verified successfully" });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: "Server error", message: err.message });
+//   }
+// });
 
 
 // Security headers
