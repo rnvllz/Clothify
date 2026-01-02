@@ -117,7 +117,7 @@ const Login: React.FC = () => {
 
       // Trigger OTP email via backend
       try {
-        const res = await fetch("/api/send-code", {
+        const res = await fetch("https://clothify-rouge.vercel.app/api/send", { ///api/send-code
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: sanitizedEmail }),

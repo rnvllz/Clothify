@@ -89,7 +89,7 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-app.post("/api/send-code", async (req, res) => {
+app.post("https://clothify-rouge.vercel.app/api/send", async (req, res) => { ///api/send-code
   try{
     const { email } = req.body
     if(!email) return res.status(400).json({ error: "Missing email" });
