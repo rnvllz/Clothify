@@ -9,7 +9,8 @@ const OTP_DEBUG = false;     // set true to log OTPs instead of sending
 export async function POST(req: Request) {
   try {
     const { email } = await req.json();
-    if (!email) return new Response(JSON.stringify({ error: "Missing email" }), { status: 400 });
+    if (!email)
+      return new Response(JSON.stringify({ error: "Missing email" }), { status: 400 });
 
     const code = crypto.randomInt(100000, 150000).toString();
 
@@ -36,6 +37,9 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ message: "OTP sent to email" }), { status: 200 });
   } catch (err: any) {
     console.error(err);
-    return new Response(JSON.stringify({ error: "Server error", message: err.message }), { status: 500 });
+    return new Response(
+      JSON.stringify({ error: "Server error", message: err.message }),
+      { status: 500 }
+    );
   }
 }
