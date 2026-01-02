@@ -17,12 +17,12 @@ const Cart: React.FC = () => {
 
 const handleRemove = (id: string) => {
   removeFromCart(id);
-  toast.success("Item removed from cart");
+  toast.success("Item removed from cart", { id: 'cart-item-removed' });
 };
 
 const handleClear = () => {
   clearCart();
-  toast.success("Cart cleared");
+  toast.success("Cart cleared", { id: 'cart-cleared' });
 };
 
   return (

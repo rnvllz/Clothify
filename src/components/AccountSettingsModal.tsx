@@ -52,7 +52,7 @@ const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOpen, onC
             if (roleError) {
               console.error('❌ Error fetching user role/name:', roleError);
               // If the name column doesn't exist, it will fail here
-              toast.error('Database setup incomplete. Please add the name column to user_roles table.');
+              toast.error('Database setup incomplete. Please add the name column to user_roles table.', { id: 'account-db-incomplete' });
             }
 
             setFormData(prev => ({
@@ -66,7 +66,7 @@ const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOpen, onC
           }
         } catch (error) {
           console.error('Error fetching user:', error);
-          toast.error('Failed to load user information');
+          toast.error('Failed to load user information', { id: 'account-load-failed' });
         } finally {
           setLoading(false);
         }
@@ -89,9 +89,9 @@ const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOpen, onC
     try {
       const { error } = await supabase.auth.updateUser({ email: formData.email });
       if (error) throw error;
-      toast.success('Email update initiated. Please check your email to confirm the change.');
+      toast.success('Email update initiated. Please check your email to confirm the change.', { id: 'account-email-update' });
     } catch (error: any) {
-      toast.error(error.message || 'Failed to update email');
+      toast.error(error.message || 'Failed to update email', { id: 'account-email-update-failed' });
     } finally {
       setSaving(false);
     }
@@ -103,13 +103,13 @@ const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOpen, onC
 
     if (!formData.name.trim()) {
       console.log('❌ Name is empty');
-      toast.error('Name cannot be empty');
+      toast.error('Name cannot be empty', { id: 'account-name-empty' });
       return;
     }
 
     if (!user?.id) {
       console.log('❌ No user ID');
-      toast.error('User not authenticated');
+      toast.error('User not authenticated', { id: 'account-not-authenticated' });
       return;
     }
 
@@ -144,13 +144,13 @@ const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOpen, onC
       }
 
       console.log('✅ Update successful, returned data:', data);
-      toast.success('Name updated successfully');
+      toast.success('Name updated successfully', { id: 'account-name-updated' });
 
       // Update the original name so the button becomes disabled again
       setOriginalName(formData.name.trim());
     } catch (error: any) {
       console.error('❌ Failed to update name:', error);
-      toast.error(error.message || 'Failed to update name');
+      toast.error(error.message || 'Failed to update name', { id: 'account-name-update-failed' });
     } finally {
       setSaving(false);
     }
@@ -158,17 +158,17 @@ const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOpen, onC
 
   const handleUpdatePassword = async () => {
     if (!formData.currentPassword || !formData.newPassword || !formData.confirmPassword) {
-      toast.error('Please fill in all password fields');
+      toast.error('Please fill in all password fields', { id: 'account-password-fields' });
       return;
     }
 
     if (formData.newPassword !== formData.confirmPassword) {
-      toast.error('New passwords do not match');
+      toast.error('New passwords do not match', { id: 'account-password-mismatch' });
       return;
     }
 
     if (formData.newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters long');
+      toast.error('Password must be at least 6 characters long', { id: 'account-password-length' });
       return;
     }
 
@@ -177,7 +177,7 @@ const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOpen, onC
       const { error } = await supabase.auth.updateUser({ password: formData.newPassword });
       if (error) throw error;
 
-      toast.success('Password updated successfully');
+      toast.success('Password updated successfully', { id: 'account-password-updated' });
       setFormData(prev => ({
         ...prev,
         currentPassword: '',
@@ -185,7 +185,7 @@ const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ isOpen, onC
         confirmPassword: '',
       }));
     } catch (error: any) {
-      toast.error(error.message || 'Failed to update password');
+      toast.error(error.message || 'Failed to update password', { id: 'account-password-update-failed' });
     } finally {
       setSaving(false);
     }

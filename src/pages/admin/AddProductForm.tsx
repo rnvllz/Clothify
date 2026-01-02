@@ -37,7 +37,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ refreshProducts, catego
         image: imageUrl,
       });
 
-      toast.success("Product added successfully!");
+      toast.success("Product added successfully!", { id: 'add-product-success' });
       // Reset form
       setTitle("");
       setDescription("");
@@ -47,7 +47,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ refreshProducts, catego
       refreshProducts();
     } catch (error) {
       console.error("Error adding product:", error);
-      toast.error("Failed to add product");
+      toast.error("Failed to add product", { id: 'add-product-failed' });
     } finally {
       setUploading(false);
     }

@@ -43,7 +43,7 @@ const Inventory: React.FC = () => {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch inventory data';
       setError(errorMessage);
-      toast.error(errorMessage);
+      toast.error(errorMessage, { id: 'inventory-error' });
       console.error('Error fetching inventory data:', err);
     } finally {
       setLoading(false);
@@ -54,9 +54,9 @@ const Inventory: React.FC = () => {
     try {
       await lowStockAlertService.resolve(alertId);
       setLowStockAlerts(lowStockAlerts.filter(a => a.id !== alertId));
-      toast.success('Alert resolved');
+      toast.success('Alert resolved', { id: 'inventory-alert-resolved' });
     } catch (err) {
-      toast.error('Failed to resolve alert');
+      toast.error('Failed to resolve alert', { id: 'inventory-resolve-failed' });
       console.error('Error resolving alert:', err);
     }
   };

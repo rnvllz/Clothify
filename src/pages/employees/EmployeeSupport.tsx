@@ -51,7 +51,7 @@ const EmployeeSupport: React.FC = () => {
     e.preventDefault();
 
     if (!formData.category || !formData.subject.trim() || !formData.description.trim()) {
-      toast.error('Please fill in all required fields');
+      toast.error('Please fill in all required fields', { id: 'employee-support-required' });
       return;
     }
 
@@ -61,7 +61,7 @@ const EmployeeSupport: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        toast.error('You must be logged in to submit a report');
+        toast.error('You must be logged in to submit a report', { id: 'employee-support-auth' });
         return;
       }
 
@@ -79,7 +79,7 @@ const EmployeeSupport: React.FC = () => {
 
       if (error) throw error;
 
-      toast.success('Report submitted successfully! Admin will review it soon.');
+      toast.success('Report submitted successfully! Admin will review it soon.', { id: 'employee-report-submitted' });
 
       // Reset form
       setFormData({
@@ -91,7 +91,7 @@ const EmployeeSupport: React.FC = () => {
 
     } catch (error) {
       console.error('Error submitting report:', error);
-      toast.error('Failed to submit report. Please try again.');
+      toast.error('Failed to submit report. Please try again.', { id: 'employee-report-failed' });
     } finally {
       setIsSubmitting(false);
     }

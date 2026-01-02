@@ -228,7 +228,7 @@ const Customers: React.FC = () => {
       // Find the selected employee
       const selectedEmployee = employees.find(emp => emp.user_id === assignModal.assigneeId);
       if (!selectedEmployee) {
-        toast.error('Selected employee not found');
+        toast.error('Selected employee not found', { id: 'customers-employee-not-found' });
         return;
       }
 
@@ -238,11 +238,11 @@ const Customers: React.FC = () => {
       await supportTicketService.assignTicket(assignModal.ticket!.id, assignModal.assigneeId);
 
       setAssignModal(null);
-      toast.success(`Ticket assigned to ${selectedEmployee.customer_name || selectedEmployee.email || 'employee'}`);
+      toast.success(`Ticket assigned to ${selectedEmployee.customer_name || selectedEmployee.email || 'employee'}`, { id: 'customers-ticket-assigned' });
       fetchSupportTickets(); // Refresh tickets
     } catch (error) {
       console.error('Error assigning ticket:', error);
-      toast.error('Failed to assign ticket');
+      toast.error('Failed to assign ticket', { id: 'customers-assign-failed' });
     }
   };
 
@@ -261,11 +261,11 @@ const Customers: React.FC = () => {
       });
 
       setRespondModal(null);
-      toast.success('Response added successfully!');
+      toast.success('Response added successfully!', { id: 'customers-response-added' });
       fetchSupportTickets(); // Refresh tickets
     } catch (error) {
       console.error('Error adding response:', error);
-      toast.error('Failed to add response');
+      toast.error('Failed to add response', { id: 'customers-response-failed' });
     }
   };
 
@@ -275,11 +275,11 @@ const Customers: React.FC = () => {
     try {
       await supportTicketService.resolveTicket(confirmResolve.id);
       setConfirmResolve(null);
-      toast.success('Ticket marked as resolved!');
+      toast.success('Ticket marked as resolved!', { id: 'customers-ticket-resolved' });
       fetchSupportTickets(); // Refresh tickets
     } catch (error) {
       console.error('Error resolving ticket:', error);
-      toast.error('Failed to resolve ticket');
+      toast.error('Failed to resolve ticket', { id: 'customers-resolve-failed' });
     }
   };
 
@@ -288,12 +288,12 @@ const Customers: React.FC = () => {
 
     try {
       await customerService.deleteCustomer(customerId);
-      toast.success('Customer deleted successfully!');
+      toast.success('Customer deleted successfully!', { id: 'customers-deleted' });
       setDeleteConfirm(null);
       fetchCustomers(); // Refresh the list
     } catch (error) {
       console.error('Error deleting customer:', error);
-      toast.error('Failed to delete customer');
+      toast.error('Failed to delete customer', { id: 'customers-delete-failed' });
     }
   };
 
@@ -307,7 +307,7 @@ const Customers: React.FC = () => {
       });
     } catch (error) {
       console.error('Error fetching ticket details:', error);
-      toast.error('Failed to load ticket details');
+      toast.error('Failed to load ticket details', { id: 'customers-load-ticket-failed' });
     }
   };
 

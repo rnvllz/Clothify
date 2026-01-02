@@ -184,7 +184,7 @@ const EmployeeCustomers: React.FC = () => {
       });
     } catch (error) {
       console.error('Error fetching customer details:', error);
-      toast.error('Failed to load customer details');
+      toast.error('Failed to load customer details', { id: 'emp-customers-load-failed' });
     }
   };
 
@@ -198,7 +198,7 @@ const EmployeeCustomers: React.FC = () => {
       });
     } catch (error) {
       console.error('Error fetching ticket details:', error);
-      toast.error('Failed to load ticket details');
+      toast.error('Failed to load ticket details', { id: 'emp-customers-ticket-load-failed' });
     }
   };
 
@@ -224,11 +224,11 @@ const EmployeeCustomers: React.FC = () => {
       });
 
       setRespondModal(null);
-      toast.success('Response added successfully!');
+      toast.success('Response added successfully!', { id: 'emp-response-added' });
       fetchSupportTickets(); // Refresh tickets
     } catch (error) {
       console.error('Error adding response:', error);
-      toast.error('Failed to add response');
+      toast.error('Failed to add response', { id: 'emp-response-failed' });
     }
   };
 
@@ -242,11 +242,11 @@ const EmployeeCustomers: React.FC = () => {
     try {
       await supportTicketService.resolveTicket(confirmResolve.id);
       setConfirmResolve(null);
-      toast.success('Ticket marked as resolved!');
+      toast.success('Ticket marked as resolved!', { id: 'emp-ticket-resolved' });
       fetchSupportTickets(); // Refresh tickets
     } catch (error) {
       console.error('Error resolving ticket:', error);
-      toast.error('Failed to resolve ticket');
+      toast.error('Failed to resolve ticket', { id: 'emp-resolve-failed' });
     }
   };
 
@@ -256,11 +256,11 @@ const EmployeeCustomers: React.FC = () => {
       if (!user) throw new Error('Not authenticated');
 
       await supportTicketService.assignTicket(ticketId, user.id);
-      toast.success('Ticket assigned to you successfully!');
+      toast.success('Ticket assigned to you successfully!', { id: 'emp-ticket-assigned' });
       fetchSupportTickets(); // Refresh tickets
     } catch (error) {
       console.error('Error assigning ticket:', error);
-      toast.error('Failed to assign ticket');
+      toast.error('Failed to assign ticket', { id: 'emp-assign-failed' });
     }
   };
 

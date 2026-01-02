@@ -24,12 +24,12 @@ const ForgotPassword: React.FC = () => {
 
       await authService.resetPasswordForEmail(email);
       setSubmitted(true);
-      toast.success("Reset link sent to your email!");
+      toast.success("Reset link sent to your email!", { id: 'forgot-reset-sent' });
     } catch (err: any) {
       console.error("Reset error:", err);
       const errorMessage = err.message || "Failed to send reset email";
       setError(errorMessage);
-      toast.error(errorMessage);
+      toast.error(errorMessage, { id: 'forgot-error' });
     } finally {
       setLoading(false);
     }

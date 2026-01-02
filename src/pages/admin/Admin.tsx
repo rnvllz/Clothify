@@ -46,11 +46,11 @@ const Admin: React.FC = () => {
     try {
       if (imageUrl) await storageService.deleteImage(imageUrl);
       await productService.delete(id);
-      toast.success("Product deleted successfully");
+      toast.success("Product deleted successfully", { id: 'admin-product-deleted' });
       fetchProducts();
     } catch (err) {
       console.error("Delete error:", err);
-      toast.error("Failed to delete product");
+      toast.error("Failed to delete product", { id: 'admin-product-delete-failed' });
     }
   };
 

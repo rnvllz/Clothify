@@ -149,7 +149,7 @@ const Login: React.FC = () => {
     } catch (err: any) {
       console.error("Login error:", err);
       setError(err.message || "Failed to login");
-      toast.error(err.message || "Failed to login");
+      toast.error(err.message || "Failed to login", { id: "login-error" });
       window.turnstile?.reset();
     } finally {
       setLoading(false);
@@ -191,19 +191,19 @@ const Login: React.FC = () => {
       const role = await userService.getUserRole(currentUserId);
       if (!role) {
         await authService.logout();
-        toast.error("Your account is pending approval. Please contact an administrator.");
+        toast.error("Your account is pending approval. Please contact an administrator.", { id: "login-pending" });
         setError("Your account is pending approval. Please contact an administrator for access.");
         return;
       }
 
-      toast.success("Verification successful!");
+      toast.success("Verification successful!", { id: "otp-verified" });
       if (role === "admin") navigate("/admin");
       else navigate("/employee-dashboard");
 
     } catch (err: any) {
       console.error("OTP verification error:", err);
       setError(err.message || "Invalid code");
-      toast.error(err.message || "Invalid code");
+      toast.error(err.message || "Invalid code", { id: "otp-error" });
     } finally {
       setLoading(false);
     }

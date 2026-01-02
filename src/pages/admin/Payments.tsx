@@ -48,7 +48,7 @@ const Payments: React.FC = () => {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch payment data';
       setError(errorMessage);
-      toast.error(errorMessage);
+      toast.error(errorMessage, { id: 'payments-error' });
       console.error('Error fetching payment data:', err);
     } finally {
       setLoading(false);

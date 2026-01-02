@@ -30,7 +30,7 @@ const EmployeeOrders: React.FC = () => {
         console.error("Error fetching orders:", err);
         const errorMessage = err instanceof Error ? err.message : "Failed to fetch orders";
         setError(errorMessage);
-        toast.error(errorMessage);
+        toast.error(errorMessage, { id: 'emp-orders-error' });
       } finally {
         setLoading(false);
       }
