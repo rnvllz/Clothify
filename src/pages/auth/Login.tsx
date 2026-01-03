@@ -57,37 +57,20 @@ const Login: React.FC = () => {
     return () => clearTimeout(timer);
   }, [navigate]);
 
-  // Load Cloudflare Turnstile
+  // Load & initialize Cloudflare Turnstile (idempotent shared loader)
   useEffect(() => {
-    if (window.turnstile) return;
-    const script = document.createElement("script");
-    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
-    script.async = true;
-    script.defer = true;
-    document.body.appendChild(script);
-  }, []);
-
-  // Initialize Turnstile
-  useEffect(() => {
-    let checkTurnstile: NodeJS.Timeout;
-    let attempts = 0;
-    const maxAttempts = 50;
-
-    const initializeTurnstile = () => {
-      if (window.turnstile && document.getElementById("turnstile-container")) {
-        clearInterval(checkTurnstile);
-        const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA";
-        try {
-          window.turnstile.render("#turnstile-container", { sitekey: siteKey, theme: "light", size: "normal" });
-        } catch (err) {
-          console.warn("Turnstile render error:", err);
-        }
-      } else if (attempts < maxAttempts) attempts++;
-      else clearInterval(checkTurnstile);
-    };
-
-    checkTurnstile = setInterval(initializeTurnstile, 100);
-    return () => clearInterval(checkTurnstile);
+    let mounted = true;
+    (async () => {
+      try {
+        const { loadTurnstileScript, initializeTurnstile } = await import("../../utils/auth");
+        await loadTurnstileScript();
+        if (!mounted) return;
+        await initializeTurnstile("turnstile-container");
+      } catch (err) {
+        console.warn("Turnstile setup error:", err);
+      }
+    })();
+    return () => { mounted = false; };
   }, []);
 
   // Handle login submission

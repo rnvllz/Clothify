@@ -108,38 +108,75 @@ export const checkAuthSession = async () => {
 };
 
 /**
- * Load Cloudflare Turnstile script
+ * Load Cloudflare Turnstile script (idempotent)
+ * Ensures the script is only injected once and returns a shared Promise for concurrent callers
  */
-export const loadTurnstileScript = () => {
-  return new Promise<void>((resolve) => {
-    if (window.turnstile) {
+let turnstileLoadPromise: Promise<void> | null = null;
+export const loadTurnstileScript = (): Promise<void> => {
+  const src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+
+  // If Turnstile is already available, resolve immediately
+  if ((window as any).turnstile) return Promise.resolve();
+
+  // Reuse existing in-flight promise
+  if (turnstileLoadPromise) return turnstileLoadPromise;
+
+  // If a script tag already exists on the page, wait for its load event
+  const existing = document.querySelector(`script[src="${src}"]`) as HTMLScriptElement | null;
+
+  turnstileLoadPromise = new Promise<void>((resolve) => {
+    if ((window as any).turnstile) {
       resolve();
       return;
     }
 
+    if (existing) {
+      if (existing.getAttribute("data-loaded") === "1") {
+        resolve();
+        return;
+      }
+      existing.addEventListener("load", () => {
+        existing.setAttribute("data-loaded", "1");
+        resolve();
+      });
+      existing.addEventListener("error", () => {
+        console.warn("Failed to load Turnstile script");
+        resolve();
+      });
+      return;
+    }
+
     const script = document.createElement("script");
-    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+    script.src = src;
     script.async = true;
     script.defer = true;
-    script.onload = () => resolve();
+    script.crossOrigin = "anonymous";
+    script.onload = () => {
+      script.setAttribute("data-loaded", "1");
+      resolve();
+    };
     script.onerror = () => {
       console.warn("Failed to load Turnstile script");
       resolve();
     };
     document.body.appendChild(script);
   });
+
+  return turnstileLoadPromise;
 };
 
 /**
- * Initialize Turnstile widget
+ * Initialize Turnstile widget (waits for loader)
  */
-export const initializeTurnstile = (containerId: string): Promise<void> => {
+export const initializeTurnstile = async (containerId: string): Promise<void> => {
+  await loadTurnstileScript();
+
   return new Promise<void>((resolve) => {
     let attempts = 0;
     const maxAttempts = 50;
 
     const tryInit = () => {
-      if (window.turnstile && document.getElementById(containerId)) {
+      if ((window as any).turnstile && document.getElementById(containerId)) {
         const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA";
         try {
           window.turnstile.render(`#${containerId}`, {
@@ -147,16 +184,15 @@ export const initializeTurnstile = (containerId: string): Promise<void> => {
             theme: "light",
             size: "normal",
           });
-          resolve();
         } catch (err) {
           console.warn("Turnstile render error:", err);
-          resolve();
         }
+        resolve();
       } else if (attempts < maxAttempts) {
         attempts++;
         setTimeout(tryInit, 100);
       } else {
-        console.warn("Turnstile failed to load after 5 seconds");
+        console.warn("Turnstile failed to initialize after 5 seconds");
         resolve();
       }
     };
