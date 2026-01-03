@@ -27,11 +27,52 @@ serve(async (req) => {
       );
     }
 
-    const { email } = await req.json();
+    const { email, token } = await req.json();
 
     if (!email) {
       return new Response(
         JSON.stringify({ error: "Email is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify Turnstile token
+    const TURNSTILE_SECRET = Deno.env.get("TURNSTILE_SECRET");
+    if (!TURNSTILE_SECRET) {
+      console.error("TURNSTILE_SECRET not configured");
+      return new Response(
+        JSON.stringify({ error: "Captcha verification not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!token) {
+      return new Response(
+        JSON.stringify({ error: "CAPTCHA token is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get client IP if available for additional verification (optional)
+    const remoteIp = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || undefined;
+
+    // Verify token with Cloudflare Turnstile
+    const params = new URLSearchParams();
+    params.append("secret", TURNSTILE_SECRET);
+    params.append("response", token);
+    if (remoteIp) params.append("remoteip", remoteIp);
+
+    const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    });
+
+    const verifyJson = await verifyRes.json();
+    if (!verifyRes.ok || !verifyJson.success) {
+      console.error("Turnstile verification failed:", verifyJson);
+      return new Response(
+        JSON.stringify({ error: verifyJson["error-codes"] || "CAPTCHA verification failed" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

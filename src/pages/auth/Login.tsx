@@ -133,7 +133,7 @@ const Login: React.FC = () => {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${supabaseAnonKey}`
           },
-          body: JSON.stringify({ email: sanitizedEmail }),
+          body: JSON.stringify({ email: sanitizedEmail, token }),
         });
 
         const data = await res.json();

@@ -4,6 +4,7 @@ import { Edit, Trash2, X, Mail, Shield, Eye, EyeOff, UserCheck, AlertTriangle, M
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import toast from 'react-hot-toast';
+import { loadTurnstileScript, initializeTurnstile } from '../../utils/auth';
 
 interface Member {
   user_id: string;
@@ -329,12 +330,15 @@ const Members: React.FC = () => {
     }
   };
 
-  const proceedToVerification = () => {
+  const proceedToVerification = async () => {
     if (!inviteEmail || !inviteEmail.includes('@')) {
       toast.error('Please enter a valid email address', { id: 'invite-invalid-email' });
       return;
     }
     setInviteStep('verification');
+    // Load and render Turnstile for verification step
+    await loadTurnstileScript();
+    initializeTurnstile('invite-turnstile-container').catch(() => {});
   };
 
   const goBackToEmail = () => {
