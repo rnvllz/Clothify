@@ -60,7 +60,8 @@ const EmployeeDashboard: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-  const { needsOnboarding, loading: onboardingLoading, userEmail } = useOnboarding();
+
+  useEffect(() => {
     const fetchData = async () => {
       await Promise.all([fetchProducts(), fetchCategories()]);
       setLoading(false);
