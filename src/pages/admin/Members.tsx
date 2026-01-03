@@ -62,6 +62,16 @@ const Members: React.FC = () => {
   const [showAssignPassword, setShowAssignPassword] = useState(false);
   const [assignOtpTimer, setAssignOtpTimer] = useState(0);
 
+  // Delete member modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<any>(null);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteOtp, setDeleteOtp] = useState('');
+  const [deleteOtpSent, setDeleteOtpSent] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [deleteOtpTimer, setDeleteOtpTimer] = useState(0);
+
   // Reports state
   const [selectedReport, setSelectedReport] = useState<EmployeeReport | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -93,6 +103,16 @@ const Members: React.FC = () => {
     }
     return () => clearInterval(interval);
   }, [assignOtpTimer]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (deleteOtpTimer > 0) {
+      interval = setInterval(() => {
+        setDeleteOtpTimer(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [deleteOtpTimer]);
 
   const fetchMembers = async () => {
     try {
@@ -411,6 +431,103 @@ const Members: React.FC = () => {
     }
   };
 
+  const sendDeleteOtp = async () => {
+    if (!userToDelete || !deletePassword) {
+      toast.error('Password is required', { id: 'delete-error' });
+      return;
+    }
+
+    try {
+      await loadTurnstileScript();
+      await initializeTurnstile('delete-turnstile-container');
+      const token = window.turnstile?.getResponse();
+      if (!token) {
+        toast.error('Please complete the CAPTCHA', { id: 'delete-error' });
+        return;
+      }
+
+      const user = await supabase.auth.getSession();
+      if (!user.data.session) {
+        toast.error('Session expired', { id: 'delete-error' });
+        return;
+      }
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      // Send OTP for delete confirmation
+      const res = await fetch(`${supabaseUrl}/functions/v1/send-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseAnonKey}`
+        },
+        body: JSON.stringify({ email: user.data.session.user.email, token })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send verification code');
+
+      toast.success('Verification code sent to your email', { id: 'delete-otp-sent' });
+      setDeleteOtpSent(true);
+      setDeleteOtpTimer(30);
+      window.turnstile?.reset();
+    } catch (err: any) {
+      console.error('Error sending delete OTP:', err);
+      toast.error(err.message || 'Failed to send verification code');
+      window.turnstile?.reset();
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!userToDelete || !deleteOtp) {
+      toast.error('Please enter the verification code', { id: 'delete-error' });
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const user = await supabase.auth.getSession();
+      if (!user.data.session) {
+        toast.error('Session expired', { id: 'delete-error' });
+        return;
+      }
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      const res = await fetch(`${supabaseUrl}/functions/v1/delete-member`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseAnonKey}`
+        },
+        body: JSON.stringify({ userId: userToDelete.user_id, adminEmail: user.data.session.user.email, code: deleteOtp })
+      });
+
+      const deleteResult = await res.json();
+      if (!res.ok) {
+        toast.error(deleteResult.error || 'Failed to delete member', { id: 'delete-failed' });
+        return;
+      }
+
+      toast.success('Member deleted successfully');
+      setShowDeleteModal(false);
+      setUserToDelete(null);
+      setDeletePassword('');
+      setDeleteOtp('');
+      setDeleteOtpSent(false);
+
+      // Refresh the members list
+      fetchMembers();
+    } catch (err: any) {
+      console.error('Error deleting member:', err);
+      toast.error(err.message || 'Failed to delete member');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div>
@@ -506,6 +623,10 @@ const Members: React.FC = () => {
                           <button 
                             className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
                             title="Remove member"
+                            onClick={() => {
+                              setUserToDelete(member);
+                              setShowDeleteModal(true);
+                            }}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -1045,6 +1166,103 @@ const Members: React.FC = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Member Modal */}
+      {showDeleteModal && userToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertTriangle className="h-6 w-6 text-red-600" />
+              <h2 className="text-2xl font-bold">Delete Member</h2>
+            </div>
+
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to delete <strong>{userToDelete.email}</strong>? This action cannot be undone.
+            </p>
+
+            {!deleteOtpSent ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Your Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showDeletePassword ? 'text' : 'password'}
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                      className="w-full p-2 border rounded focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                      placeholder="Enter your password"
+                    />
+                    <button
+                      onClick={() => setShowDeletePassword(!showDeletePassword)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+                    >
+                      {showDeletePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div id="delete-turnstile-container" className="flex justify-center"></div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={sendDeleteOtp}
+                    disabled={!deletePassword}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400"
+                  >
+                    Continue
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Verification Code
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteOtp}
+                    onChange={(e) => setDeleteOtp(e.target.value)}
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    placeholder="Enter 6-digit code"
+                    maxLength={6}
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Code sent to your admin email
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setDeleteOtpSent(false);
+                      setDeleteOtp('');
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={confirmDelete}
+                    disabled={deleting || !deleteOtp || deleteOtpTimer > 0}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400"
+                  >
+                    {deleting ? 'Deleting...' : 'Delete Member'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
