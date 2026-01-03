@@ -33,8 +33,15 @@ const ContactUs: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated && activeTab === 'view') {
-      fetchMyTickets();
+    if (activeTab === 'view') {
+      if (isAuthenticated) {
+        fetchMyTickets();
+      } else {
+        // Reset email submission when viewing for non-authenticated users
+        console.log('Resetting email form - emailSubmitted:', emailSubmitted, 'isAuthenticated:', isAuthenticated);
+        setEmailSubmitted(false);
+        // Don't clear tickets here - let the render logic show the form instead
+      }
     }
   }, [isAuthenticated, activeTab]);
 
@@ -491,7 +498,8 @@ const ContactUs: React.FC = () => {
             <div className="text-center py-8">
               <p className="text-gray-600">Loading your support tickets...</p>
             </div>
-          ) : !isAuthenticated && !emailSubmitted ? (
+          ) : !emailSubmitted && !isAuthenticated ? (
+            // Show email entry form for unauthenticated users who haven't submitted an email yet
             <div className="text-center py-8">
               <div className="bg-blue-50 border border-blue-200 rounded-md p-6 max-w-md mx-auto">
                 <MessageSquare className="h-12 w-12 text-blue-500 mx-auto mb-4" />
@@ -515,10 +523,10 @@ const ContactUs: React.FC = () => {
                     View My Tickets
                   </button>
                 </form>
-
               </div>
             </div>
           ) : (
+            // Show tickets or no tickets message
             <>
               {ticketsError && (
                 <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
@@ -527,22 +535,22 @@ const ContactUs: React.FC = () => {
               )}
 
               {tickets.length === 0 ? (
-                !isAuthenticated ? (
-                  <div className="max-w-md mx-auto bg-blue-50 border border-blue-200 rounded-md p-6 text-center">
-                    <MessageSquare className="h-12 w-12 text-blue-500 mx-auto mb-4" />
-                    {emailSubmitted ? (
-                      <>
-                        <h2 className="text-lg font-semibold text-gray-700 mb-2">No tickets found for "{emailForTickets}"</h2>
-                        <p className="text-sm text-gray-600 mb-4">We couldn't find any tickets for this email. Please check the email address and try again or submit a new ticket.</p>
-                      </>
-                    ) : (
-                      <>
-                        <h2 className="text-lg font-semibold text-blue-800 mb-2">View Your Tickets</h2>
-                        <p className="text-blue-700 mb-4">Enter the email address you used to submit your support ticket.</p>
-                      </>
-                    )}
-
-                    <form onSubmit={handleEmailSubmit} className="space-y-4">
+                <div className="max-w-md mx-auto bg-blue-50 border border-blue-200 rounded-md p-6 text-center">
+                  <MessageSquare className="h-12 w-12 text-blue-500 mx-auto mb-4" />
+                  <h2 className="text-lg font-semibold text-gray-700 mb-2">No Support Tickets</h2>
+                  {emailSubmitted ? (
+                    <p className="text-sm text-gray-600 mb-4">We couldn't find any tickets for "{emailForTickets}". Please check the email address and try again or submit a new ticket.</p>
+                  ) : (
+                    <p className="text-sm text-gray-600 mb-4">You haven't submitted any support tickets yet.</p>
+                  )}
+                  <button
+                    onClick={() => setActiveTab('submit')}
+                    className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+                  >
+                    Submit Your First Ticket
+                  </button>
+                  {emailSubmitted && (
+                    <form onSubmit={handleEmailSubmit} className="space-y-4 mt-4 border-t pt-4">
                       <input
                         type="email"
                         value={emailForTickets}
@@ -551,38 +559,15 @@ const ContactUs: React.FC = () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       />
-                      <div className="flex gap-2">
-                        <button
-                          type="submit"
-                          className="flex-1 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
-                        >
-                          View My Tickets
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setActiveTab('submit'); setEmailSubmitted(false); }}
-                          className="flex-1 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50 transition-colors"
-                        >
-                          Submit Ticket
-                        </button>
-                      </div>
+                      <button
+                        type="submit"
+                        className="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+                      >
+                        Try Another Email
+                      </button>
                     </form>
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <MessageSquare className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <h2 className="text-xl font-semibold text-gray-600 mb-2">No Support Tickets</h2>
-                    <p className="text-gray-500 mb-6">
-                      You haven't submitted any support tickets yet.
-                    </p>
-                    <button
-                      onClick={() => setActiveTab('submit')}
-                      className="inline-block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors"
-                    >
-                      Submit Your First Ticket
-                    </button>
-                  </div>
-                )
+                  )}
+                </div>
               ) : (
                 <div className="space-y-6">
                   <div className="flex justify-between items-center">
