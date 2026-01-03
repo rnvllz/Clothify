@@ -37,36 +37,39 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify OTP exists and is valid
-    const { data: otpRecord, error: otpError } = await supabase
-      .from("otp_codes")
-      .select("*")
-      .eq("email", adminEmail.toLowerCase())
-      .eq("code", code)
-      .single();
+    // Skip OTP validation if using password-confirmed flow
+    if (code !== 'password-confirmed') {
+      // Verify OTP exists and is valid
+      const { data: otpRecord, error: otpError } = await supabase
+        .from("otp_codes")
+        .select("*")
+        .eq("email", adminEmail.toLowerCase())
+        .eq("code", code)
+        .single();
 
-    if (otpError || !otpRecord) {
-      console.warn(`OTP not found for ${adminEmail}:`, otpError);
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired verification code" }),
-        { status: 400, headers: corsHeaders }
-      );
-    }
+      if (otpError || !otpRecord) {
+        console.warn(`OTP not found for ${adminEmail}:`, otpError);
+        return new Response(
+          JSON.stringify({ error: "Invalid or expired verification code" }),
+          { status: 400, headers: corsHeaders }
+        );
+      }
 
-    // Check expiry
-    if (new Date(otpRecord.expires_at) < new Date()) {
-      // Delete expired OTP
-      await supabase.from("otp_codes").delete().eq("id", otpRecord.id);
-      return new Response(
-        JSON.stringify({ error: "Verification code has expired" }),
-        { status: 400, headers: corsHeaders }
-      );
-    }
+      // Check expiry
+      if (new Date(otpRecord.expires_at) < new Date()) {
+        // Delete expired OTP
+        await supabase.from("otp_codes").delete().eq("id", otpRecord.id);
+        return new Response(
+          JSON.stringify({ error: "Verification code has expired" }),
+          { status: 400, headers: corsHeaders }
+        );
+      }
 
-    // Consume OTP
-    const { error: deleteOtpError } = await supabase.from("otp_codes").delete().eq("id", otpRecord.id);
-    if (deleteOtpError) {
-      console.warn("Failed to delete OTP:", deleteOtpError);
+      // Consume OTP
+      const { error: deleteOtpError } = await supabase.from("otp_codes").delete().eq("id", otpRecord.id);
+      if (deleteOtpError) {
+        console.warn("Failed to delete OTP:", deleteOtpError);
+      }
     }
 
     // Delete the user from auth using service role
