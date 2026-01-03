@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, User, Bell, Lock, Save } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,8 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { ChangePasswordModal } from '@/components/ChangePasswordModal';
+import { useOnboarding } from '@/hooks/use-onboarding';
 
 const EmployeeSettings: React.FC = () => {
+  const [modalOpen, setModalOpen] = useState(false);
+  const { needsOnboarding } = useOnboarding();
+
+  useEffect(() => {
+    if (needsOnboarding) setModalOpen(true);
+  }, [needsOnboarding]);
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-6">
@@ -97,21 +106,13 @@ const EmployeeSettings: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-4 sm:space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="current-password" className="text-sm font-medium">Change Password</Label>
-              <Input id="current-password" type="password" placeholder="Current password" className="w-full" />
+              <Label htmlFor="change-password" className="text-sm font-medium">Change Password</Label>
+              <p className="text-xs text-muted-foreground">Use the button below to update your password.</p>
             </div>
 
-            <div className="space-y-2">
-              <Input type="password" placeholder="New password" className="w-full" />
-            </div>
-
-            <div className="space-y-2">
-              <Input type="password" placeholder="Confirm new password" className="w-full" />
-            </div>
-
-            <Button className="w-full">
+            <Button className="w-full" onClick={() => setModalOpen(true)}>
               <Lock className="w-4 h-4 mr-2" />
-              Update Password
+              Change Password
             </Button>
           </CardContent>
         </Card>
@@ -150,6 +151,8 @@ const EmployeeSettings: React.FC = () => {
           Save Changes
         </Button>
       </div>
+
+      <ChangePasswordModal isOpen={modalOpen} onClose={() => setModalOpen(false)} requireCurrentPassword={false} redirectTo="/" />
     </div>
   );
 };

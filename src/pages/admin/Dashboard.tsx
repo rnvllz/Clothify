@@ -6,6 +6,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { Area, AreaChart, Bar, BarChart, Line, LineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useOnboarding } from "../../hooks/use-onboarding";
 import { OnboardingModal } from "../../components/OnboardingModal";
+import { ChangePasswordModal } from "../../components/ChangePasswordModal";
 
 // Sample data - in a real app, this would come from your API
 const salesData = [
@@ -62,10 +63,12 @@ const chartConfig = {
 
 const Dashboard: React.FC = () => {
   const { needsOnboarding, loading: onboardingLoading, userEmail } = useOnboarding();
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
-      <OnboardingModal isOpen={needsOnboarding} userEmail={userEmail} />
+      <OnboardingModal isOpen={needsOnboarding} userEmail={userEmail} onOpenChangePassword={() => setPasswordModalOpen(true)} />
+      <ChangePasswordModal isOpen={passwordModalOpen} onClose={() => setPasswordModalOpen(false)} requireCurrentPassword={false} redirectTo="/admin" />
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-6">
         <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8" />
