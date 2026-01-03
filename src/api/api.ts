@@ -747,8 +747,9 @@ export const supportTicketService = {
           ...r,
           responder_email: r.responder?.email || null
         };
-        responsesByTicket[r.ticket_id] = responsesByTicket[r.ticket_id] || [];
-        responsesByTicket[r.ticket_id].push(resp);
+        const key = r.ticket_id as number;
+        if (!responsesByTicket[key]) responsesByTicket[key] = [];
+        responsesByTicket[key].push(resp);
       });
     }
 
@@ -793,8 +794,9 @@ export const supportTicketService = {
           ...r,
           responder_email: r.responder?.email || null
         };
-        responsesByTicket[r.ticket_id] = responsesByTicket[r.ticket_id] || [];
-        responsesByTicket[r.ticket_id].push(resp);
+        const key = r.ticket_id as number;
+        if (!responsesByTicket[key]) responsesByTicket[key] = [];
+        responsesByTicket[key].push(resp);
       });
     }
 
